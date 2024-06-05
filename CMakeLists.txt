@@ -3,4 +3,9 @@ project(Coal_Miner C)
 
 set(CMAKE_C_STANDARD 23)
 
-add_executable(Coal_Miner main.c)
+file(GLOB_RECURSE MAIN_SRC CONFIGURE_DEPENDS MainApp/src/*.c)
+
+add_subdirectory(Engine)
+add_executable(Coal_Miner ${MAIN_SRC})
+
+target_link_libraries(${PROJECT_NAME} PRIVATE Engine)

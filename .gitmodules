@@ -1,0 +1,4 @@
+[submodule "Engine/external/glfw"]
+	path = Engine/external/glfw
+	url = https://github.com/glfw/glfw.git
+	branch = master

@@ -1,0 +1,46 @@
+#region Platforms
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    add_definitions(-DPLATFORM_WINDOWS)
+    option(DESKTOP "Desktop" ON)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_definitions(-DPLATFORM_LINUX)
+    option(DESKTOP "Desktop" ON)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    add_definitions(-DPLATFORM_MAC)
+    option(DESKTOP "Desktop" ON)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Android")
+    add_definitions(-DPLATFORM_ANDROID)
+    option(ANDROID "Android" ON)
+else()
+    message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_definitions(-DDEBUG)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_definitions(-DRELEASE)
+endif()
+#endregion
+
+file(GLOB_RECURSE ENGINE_SRC CONFIGURE_DEPENDS src/*.c)
+
+if(DESKTOP)
+    set(PLATFORM platforms/cm_desktop.c)
+elseif ()
+    set(PLATFORM platforms/cm_android.c)
+else()
+    message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
+endif()
+
+add_subdirectory(external/glfw)
+add_subdirectory(external/glad)
+add_library(Engine ${ENGINE_SRC} ${PLATFORM})
+target_link_libraries(Engine glfw)
+target_link_libraries(Engine Glad)
+
+target_include_directories(Engine PUBLIC src/)
+target_include_directories(Engine PUBLIC include/)
+target_include_directories(Engine PUBLIC external/)
+target_include_directories(Engine PUBLIC external/glfw/include)
+target_include_directories(Engine PUBLIC external/glad/include)
