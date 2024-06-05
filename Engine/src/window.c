@@ -29,7 +29,7 @@ void create_window(unsigned int width, unsigned int height, const char *title)
 	}
 }
 
-void set_window_flag(ConfigFlags hint)
+void set_window_flags(ConfigFlags hint)
 {
 	WINDOW.flags |= hint;
 }

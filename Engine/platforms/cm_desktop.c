@@ -35,7 +35,7 @@ void init_platform(Window* window)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, COAL_PROFILE_MAJOR);          // Choose OpenGL major version (just hint)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, COAL_PROFILE_MINOR);          // Choose OpenGL minor version (just hint)
 	glfwWindowHint(GLFW_OPENGL_PROFILE, COAL_PROFILE);
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_FALSE);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 
 	glfwSetJoystickCallback(NULL);
 
@@ -93,7 +93,7 @@ void init_platform(Window* window)
 		glfwWindowHint(GLFW_SAMPLES, 4);   // Tries to enable multisampling x4 (MSAA), default is 0
 	//endregion
 
-	GLFWwindow* mainWindow = glfwCreateWindow((int)window->display.width, (int)window->display.height, window->title, monitor, NULL);
+	GLFWwindow* mainWindow = glfwCreateWindow((int)window->display.width, (int)window->display.height, window->title, NULL, NULL);
 	if(mainWindow)
 	{
 		window->ready = true;
