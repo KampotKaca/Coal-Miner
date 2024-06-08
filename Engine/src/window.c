@@ -80,33 +80,33 @@ void close_window()
 
 //region internals
 
-void coal_minimize_window() { minimize_window(); }
-void coal_maximize_window() { maximize_window(); }
-void coal_toggle_fullscreen() { toggle_fullscreen(); }
-void coal_toggle_borderless_windowed() { toggle_borderless_windowed(); }
-void coal_restore_window() { restore_window(); }
+void cm_minimize_window() { minimize_window(); }
+void cm_maximize_window() { maximize_window(); }
+void cm_toggle_fullscreen() { toggle_fullscreen(); }
+void cm_toggle_borderless_windowed() { toggle_borderless_windowed(); }
+void cm_restore_window() { restore_window(); }
 
-void coal_set_window_title(const char *title) { set_window_title(title); }
-void coal_set_window_position(V2i position) { set_window_position(position.x, position.y); }
-void coal_set_window_monitor(int monitor) { set_window_monitor(monitor); }
-void coal_set_window_min_size(V2i size) { set_window_min_size(size.x, size.y); }
-void coal_set_window_max_size(V2i size) { set_window_max_size(size.x, size.y); }
-void coal_set_window_size(V2i size) { set_window_size(size.x, size.y); }
-void coal_set_window_opacity(float opacity) { set_window_opacity(opacity); }
-void coal_set_window_focused(void) { set_window_focused(); }
+void cm_set_window_title(const char *title) { set_window_title(title); }
+void cm_set_window_position(V2i position) { set_window_position(position.x, position.y); }
+void cm_set_window_monitor(int monitor) { set_window_monitor(monitor); }
+void cm_set_window_min_size(V2i size) { set_window_min_size(size.x, size.y); }
+void cm_set_window_max_size(V2i size) { set_window_max_size(size.x, size.y); }
+void cm_set_window_size(V2i size) { set_window_size(size.x, size.y); }
+void cm_set_window_opacity(float opacity) { set_window_opacity(opacity); }
+void cm_set_window_focused(void) { set_window_focused(); }
 
-void coal_set_window_icon(Image image) { set_window_icon(image); }
-void coal_set_window_icons(Image* images, int count) { set_window_icons(images, count); }
+void cm_set_window_icon(Image image) { set_window_icon(image); }
+void cm_set_window_icons(Image* images, int count) { set_window_icons(images, count); }
 
-V2 coal_get_window_position(void) { return get_window_position(); }
-V2 coal_get_window_scale_dpi(void) { return get_window_scale_dpi(); }
-void coal_set_clipboard_text(const char *text) { set_clipboard_text(text); }
-const char *coal_get_clipboard_text(void) { return get_clipboard_text(); }
-void coal_show_cursor(void) { show_cursor(); }
-void coal_hide_cursor(void) { hide_cursor(); }
-void coal_enable_cursor(void) { enable_cursor(); }
-void coal_disable_cursor(void) { disable_cursor(); }
-void coal_set_mouse_position(V2i position) { set_mouse_position(position.x, position.y); }
-void coal_set_mouse_cursor(int cursor) { set_mouse_cursor(cursor); }
+V2 cm_get_window_position(void) { return get_window_position(); }
+V2 cm_get_window_scale_dpi(void) { return get_window_scale_dpi(); }
+void cm_set_clipboard_text(const char *text) { set_clipboard_text(text); }
+const char *cm_get_clipboard_text(void) { return get_clipboard_text(); }
+void cm_show_cursor(void) { show_cursor(); }
+void cm_hide_cursor(void) { hide_cursor(); }
+void cm_enable_cursor(void) { enable_cursor(); }
+void cm_disable_cursor(void) { disable_cursor(); }
+void cm_set_mouse_position(V2i position) { set_mouse_position(position.x, position.y); }
+void cm_set_mouse_cursor(int cursor) { set_mouse_cursor(cursor); }
 
 //endregion

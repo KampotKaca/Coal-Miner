@@ -1,12 +1,20 @@
 #ifndef COAL_MINER_H
 #define COAL_MINER_H
 
+#define CM_MALLOC(sz) malloc(sz)
+#define CM_CALLOC(n, sz) calloc(n, sz)
+#define CM_REALLOC(ptr,sz) realloc(ptr, sz)
+#define CM_FREE(ptr) free(ptr)
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>
+#include <dirent.h>
+
+#include <sys/types.h>
 #include "config.h"
 #include "coal_math.h"
 
@@ -261,7 +269,8 @@ typedef struct Rect
 typedef struct Image
 {
 	void *data;             // Image raw data
-	V2i size;               // Image base width
+	int width;              // Image base width
+	int height;             // Image base height
 	int mipmaps;            // Mipmap levels, 1 by default
 	int format;             // Data format (PixelFormat type)
 } Image;
@@ -270,7 +279,8 @@ typedef struct Image
 typedef struct Texture
 {
 	unsigned int id;        // OpenGL texture id
-	V2i size;               // Texture base width
+	int width;              // Texture base width
+	int height;             // Texture base height
 	int mipmaps;            // Mipmap levels, 1 by default
 	int format;             // Data format (PixelFormat type)
 } Texture;
@@ -284,7 +294,13 @@ typedef struct RenderTexture
 } RenderTexture;
 //endregion
 
-extern Image coal_load_image(const char* filePath);
-extern Texture coal_load_texture(const char* filePath);
+extern Image cm_load_image(const char* filePath);
+extern void cm_unload_image(Image image);
+extern void cm_unload_images(Image* image, int size);
+extern Image cm_load_image_raw(const char *filePath, int width, int height, int format, int headerSize);
+extern Image cm_load_image_svg(const char *fileNameOrString, int width, int height);
+extern Texture cm_load_texture(const char* filePath);
+extern Texture cm_load_texture_from_image(Image image);
+extern const char *cm_get_file_extension(const char *filePath);
 
 #endif //COAL_MINER_H

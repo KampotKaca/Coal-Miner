@@ -1,4 +1,4 @@
 file(GLOB_RECURSE GLAD_SRC CONFIGURE_DEPENDS src/*.c)
-add_library(Glad ${GLAD_SRC})
+add_library(glad ${GLAD_SRC})
 
-target_include_directories(Glad PUBLIC include)
+target_include_directories(glad PUBLIC include)

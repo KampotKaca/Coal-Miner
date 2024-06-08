@@ -6,6 +6,7 @@
 #define GLFW_MOUSE_PASSTHROUGH      0x0002000D
 #endif
 
+#include "coal_miner_internal.h"
 #include "platform.h"
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -1006,8 +1007,8 @@ void set_window_icon(Image image)
 		{
 			GLFWimage icon[1] = { 0 };
 
-			icon[0].width = image.size.x;
-			icon[0].height = image.size.y;
+			icon[0].width = image.width;
+			icon[0].height = image.height;
 			icon[0].pixels = (unsigned char *)image.data;
 
 			// NOTE 1: We only support one image icon
@@ -1032,14 +1033,14 @@ void set_window_icons(Image* images, int count)
 	else
 	{
 		int valid = 0;
-		GLFWimage *icons = calloc(count, sizeof(GLFWimage));
+		GLFWimage *icons = CM_CALLOC(count, sizeof(GLFWimage));
 
 		for (int i = 0; i < count; i++)
 		{
 			if (images[i].format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8)
 			{
-				icons[valid].width = images[i].size.x;
-				icons[valid].height = images[i].size.y;
+				icons[valid].width = images[i].width;
+				icons[valid].height = images[i].height;
 				icons[valid].pixels = (unsigned char *)images[i].data;
 
 				valid++;
@@ -1049,7 +1050,7 @@ void set_window_icons(Image* images, int count)
 		// NOTE: Images data is copied internally before this function returns
 		glfwSetWindowIcon(WINDOW_ptr->platformHandle, valid, icons);
 
-		free(icons);
+		CM_FREE(icons);
 	}
 }
 

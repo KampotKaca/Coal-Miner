@@ -33,14 +33,19 @@ else()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
 endif()
 
-add_subdirectory(external/glfw)
 add_subdirectory(external/glad)
+add_subdirectory(external/glfw)
+add_subdirectory(external/stb)
+
 add_library(Engine ${ENGINE_SRC} ${PLATFORM})
+
+target_link_libraries(Engine glad)
 target_link_libraries(Engine glfw)
-target_link_libraries(Engine Glad)
+target_link_libraries(Engine stb)
 
 target_include_directories(Engine PUBLIC src/)
 target_include_directories(Engine PUBLIC include/)
 target_include_directories(Engine PUBLIC external/)
-target_include_directories(Engine PUBLIC external/glfw/include)
 target_include_directories(Engine PUBLIC external/glad/include)
+target_include_directories(Engine PUBLIC external/glfw/include)
+target_include_directories(Engine PUBLIC external/stb/include)
