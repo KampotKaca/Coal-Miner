@@ -1,7 +1,6 @@
 #include "window.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "platform.h"
 
 Window WINDOW;
 Input INPUT;
@@ -11,8 +10,15 @@ void create_window(unsigned int width, unsigned int height, const char *title)
 	WINDOW.display.width = width;
 	WINDOW.display.height = height;
 	WINDOW.eventWaiting = false;
+	WINDOW.screenScale = matrix_identity();
 	if ((title != NULL) && (title[0] != 0)) WINDOW.title = title;
 	else WINDOW.title = "Coal Miner";
+
+	memset(&INPUT, 0, sizeof(INPUT));     // Reset CORE.Input structure to 0
+	INPUT.Keyboard.exitKey = APPLICATION_EXIT_KEY;
+	INPUT.Mouse.scale = (V2){ 1.0f, 1.0f };
+	INPUT.Mouse.cursor = MOUSE_CURSOR_ARROW;
+	INPUT.Gamepad.lastButtonPressed = GAMEPAD_BUTTON_UNKNOWN;
 
 	if(!init_platform(&WINDOW, &INPUT))
 	{
@@ -20,51 +26,25 @@ void create_window(unsigned int width, unsigned int height, const char *title)
 		return;
 	}
 
-	if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-	{
-		printf("Unable to load glad!!!");
-		return;
-	}
+	glDepthFunc(GL_LEQUAL);                                 // Type of depth testing to apply
+	glDisable(GL_DEPTH_TEST);                               // Disable depth testing for 2D (only used for 3D)
+
+	// Init state: Blending mode
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);      // Color blending function (how colors are mixed)
+	glEnable(GL_BLEND);                                     // Enable color blending (required to work with transparencies)
+
+	// Init state: Culling
+	// NOTE: All shapes/models triangles are drawn CCW
+	glCullFace(GL_BACK);                                    // Cull the back face (default)
+	glFrontFace(GL_CCW);                                    // Front face are defined counter clockwise (default)
+	glEnable(GL_CULL_FACE);                                 // Enable backface culling
+
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);                   // Set clear color (black)
+	glClearDepth(1.0f);                                     // Set clear depth value (default)
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// Setup default viewport
 	setup_viewport((int)WINDOW.currentFbo.width, (int)WINDOW.currentFbo.height);
-
-#if defined(SUPPORT_MODULE_RTEXT) && defined(SUPPORT_DEFAULT_FONT)
-	// Load default font
-    // WARNING: External function: Module required: rtext
-    LoadFontDefault();
-    #if defined(SUPPORT_MODULE_RSHAPES)
-    // Set font white rectangle for shapes drawing, so shapes and text can be batched together
-    // WARNING: rshapes module is required, if not available, default internal white rectangle is used
-    Rectangle rec = GetFontDefault().recs[95];
-    if (CORE.Window.flags & FLAG_MSAA_4X_HINT)
-    {
-        // NOTE: We try to maxime rec padding to avoid pixel bleeding on MSAA filtering
-        SetShapesTexture(GetFontDefault().texture, (Rectangle){ rec.x + 2, rec.y + 2, 1, 1 });
-    }
-    else
-    {
-        // NOTE: We set up a 1px padding on char rectangle to avoid pixel bleeding
-        SetShapesTexture(GetFontDefault().texture, (Rectangle){ rec.x + 1, rec.y + 1, rec.width - 2, rec.height - 2 });
-    }
-    #endif
-#else
-#if defined(SUPPORT_MODULE_RSHAPES)
-	// Set default texture and rectangle to be used for shapes drawing
-    // NOTE: rlgl default texture is a 1x1 pixel UNCOMPRESSED_R8G8B8A8
-    Texture2D texture = { rlGetTextureIdDefault(), 1, 1, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
-    SetShapesTexture(texture, (Rectangle){ 0.0f, 0.0f, 1.0f, 1.0f });    // WARNING: Module required: rshapes
-#endif
-#endif
-#if defined(SUPPORT_MODULE_RTEXT) && defined(SUPPORT_DEFAULT_FONT)
-	if ((CORE.Window.flags & FLAG_WINDOW_HIGHDPI) > 0)
-    {
-        // Set default font texture filter for HighDPI (blurry)
-        // RL_TEXTURE_FILTER_LINEAR - tex filter: BILINEAR, no mipmaps
-        rlTextureParameters(GetFontDefault().texture.id, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_FILTER_LINEAR);
-        rlTextureParameters(GetFontDefault().texture.id, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_FILTER_LINEAR);
-    }
-#endif
 
 	WINDOW.shouldClose = false;
 }
@@ -76,23 +56,57 @@ void set_window_flags(ConfigFlags hint)
 
 bool window_should_close()
 {
-	return glfwWindowShouldClose(WINDOW.platformHandle);
+	if (WINDOW.ready) return WINDOW.shouldClose;
+	else return true;
 }
 
 void begin_draw()
 {
-	glClearColor(0, 0, 0, 1);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void end_draw()
 {
-	poll_input_events();
 	swap_screen_buffer();
+	poll_input_events();
 }
 
-void terminate_window()
+void close_window()
 {
-	glfwDestroyWindow(WINDOW.platformHandle);
-	glfwTerminate();
+	WINDOW.ready = false;
+	terminate_platform();
 }
+
+//region internals
+
+void coal_minimize_window() { minimize_window(); }
+void coal_maximize_window() { maximize_window(); }
+void coal_toggle_fullscreen() { toggle_fullscreen(); }
+void coal_toggle_borderless_windowed() { toggle_borderless_windowed(); }
+void coal_restore_window() { restore_window(); }
+
+void coal_set_window_title(const char *title) { set_window_title(title); }
+void coal_set_window_position(V2i position) { set_window_position(position.x, position.y); }
+void coal_set_window_monitor(int monitor) { set_window_monitor(monitor); }
+void coal_set_window_min_size(V2i size) { set_window_min_size(size.x, size.y); }
+void coal_set_window_max_size(V2i size) { set_window_max_size(size.x, size.y); }
+void coal_set_window_size(V2i size) { set_window_size(size.x, size.y); }
+void coal_set_window_opacity(float opacity) { set_window_opacity(opacity); }
+void coal_set_window_focused(void) { set_window_focused(); }
+
+void coal_set_window_icon(Image image) { set_window_icon(image); }
+void coal_set_window_icons(Image* images, int count) { set_window_icons(images, count); }
+
+V2 coal_get_window_position(void) { return get_window_position(); }
+V2 coal_get_window_scale_dpi(void) { return get_window_scale_dpi(); }
+void coal_set_clipboard_text(const char *text) { set_clipboard_text(text); }
+const char *coal_get_clipboard_text(void) { return get_clipboard_text(); }
+void coal_show_cursor(void) { show_cursor(); }
+void coal_hide_cursor(void) { hide_cursor(); }
+void coal_enable_cursor(void) { enable_cursor(); }
+void coal_disable_cursor(void) { disable_cursor(); }
+void coal_set_mouse_position(V2i position) { set_mouse_position(position.x, position.y); }
+void coal_set_mouse_cursor(int cursor) { set_mouse_cursor(cursor); }
+
+//endregion

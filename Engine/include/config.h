@@ -14,4 +14,11 @@
 #define MAX_KEY_PRESSED_QUEUE          16       // Maximum number of keys in the key input queue
 #define MAX_CHAR_PRESSED_QUEUE         16       // Maximum number of characters in the char input queue
 
+#define APPLICATION_EXIT_KEY 256
+
+#define COAL_WINDOW_FLAGS (FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE)
+#define COAL_WINDOW_WIDTH 800
+#define COAL_WINDOW_HEIGHT 600
+#define COAL_WINDOW_TITLE "Coal Miner"
+
 #endif //CONFIG_H

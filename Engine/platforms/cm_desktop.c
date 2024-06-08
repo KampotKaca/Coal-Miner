@@ -1,3 +1,5 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "UnusedParameter"
 #define GLFW_INCLUDE_NONE       // Disable the standard OpenGL header inclusion on GLFW3
 
 #if !defined(GLFW_MOUSE_PASSTHROUGH)
@@ -5,7 +7,6 @@
 #endif
 
 #include "platform.h"
-#include "coal_math.h"
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
@@ -121,7 +122,7 @@ static void CharCallback(GLFWwindow *window, unsigned int key)
 	if (INPUT_ptr->Keyboard.charPressedQueueCount < MAX_CHAR_PRESSED_QUEUE)
 	{
 		// Add character to the queue
-		INPUT_ptr->Keyboard.charPressedQueue[INPUT_ptr->Keyboard.charPressedQueueCount] = key;
+		INPUT_ptr->Keyboard.charPressedQueue[INPUT_ptr->Keyboard.charPressedQueueCount] = (int)key;
 		INPUT_ptr->Keyboard.charPressedQueueCount++;
 	}
 }
@@ -131,34 +132,7 @@ static void MouseButtonCallback(GLFWwindow *window, int button, int action, int 
 {
 	// WARNING: GLFW could only return GLFW_PRESS (1) or GLFW_RELEASE (0) for now,
 	// but future releases may add more actions (i.e. GLFW_REPEAT)
-	INPUT_ptr->Mouse.currentButtonState[button] = action;
-
-#if defined(SUPPORT_GESTURES_SYSTEM) && defined(SUPPORT_MOUSE_GESTURES)
-	// Process mouse events as touches to be able to use mouse-gestures
-    GestureEvent gestureEvent = { 0 };
-
-    // Register touch actions
-    if ((INPUT->Mouse.currentButtonState[button] == 1) && (INPUT->Mouse.previousButtonState[button] == 0)) gestureEvent.touchAction = TOUCH_ACTION_DOWN;
-    else if ((INPUT->Mouse.currentButtonState[button] == 0) && (INPUT->Mouse.previousButtonState[button] == 1)) gestureEvent.touchAction = TOUCH_ACTION_UP;
-
-    // NOTE: TOUCH_ACTION_MOVE event is registered in MouseCursorPosCallback()
-
-    // Assign a pointer ID
-    gestureEvent.pointId[0] = 0;
-
-    // Register touch points count
-    gestureEvent.pointCount = 1;
-
-    // Register touch points position, only one point registered
-    gestureEvent.position[0] = GetMousePosition();
-
-    // Normalize gestureEvent.position[0] for WINDOW->screen.width and WINDOW->screen.height
-    gestureEvent.position[0].x /= (float)GetScreenWidth();
-    gestureEvent.position[0].y /= (float)GetScreenHeight();
-
-    // Gesture data is sent to gestures-system for processing
-    ProcessGestureEvent(gestureEvent);
-#endif
+	INPUT_ptr->Mouse.currentButtonState[button] = (char)action;
 }
 
 // GLFW3 Cursor Position Callback, runs on mouse move
@@ -167,29 +141,6 @@ static void MouseCursorPosCallback(GLFWwindow *window, double x, double y)
 	INPUT_ptr->Mouse.currentPosition.x = (float)x;
 	INPUT_ptr->Mouse.currentPosition.y = (float)y;
 	INPUT_ptr->Touch.position[0] = INPUT_ptr->Mouse.currentPosition;
-
-#if defined(SUPPORT_GESTURES_SYSTEM) && defined(SUPPORT_MOUSE_GESTURES)
-	// Process mouse events as touches to be able to use mouse-gestures
-    GestureEvent gestureEvent = { 0 };
-
-    gestureEvent.touchAction = TOUCH_ACTION_MOVE;
-
-    // Assign a pointer ID
-    gestureEvent.pointId[0] = 0;
-
-    // Register touch points count
-    gestureEvent.pointCount = 1;
-
-    // Register touch points position, only one point registered
-    gestureEvent.position[0] = INPUT->Touch.position[0];
-
-    // Normalize gestureEvent.position[0] for WINDOW->screen.width and WINDOW->screen.height
-    gestureEvent.position[0].x /= (float)GetScreenWidth();
-    gestureEvent.position[0].y /= (float)GetScreenHeight();
-
-    // Gesture data is sent to gestures-system for processing
-    ProcessGestureEvent(gestureEvent);
-#endif
 }
 
 // GLFW3 Scrolling Callback, runs on mouse wheel
@@ -210,7 +161,8 @@ static void JoystickCallback(int jid, int event)
 {
 	if (event == GLFW_CONNECTED)
 	{
-		strcpy(INPUT_ptr->Gamepad.name[jid], glfwGetJoystickName(jid));
+		strcpy_s(INPUT_ptr->Gamepad.name[jid], sizeof(INPUT_ptr->Gamepad.name[jid]), glfwGetJoystickName(jid));
+//		strcpy(INPUT_ptr->Gamepad.name[jid], glfwGetJoystickName(jid));
 	}
 	else if (event == GLFW_DISCONNECTED)
 	{
@@ -298,11 +250,71 @@ void setup_framebuffer(Window* window)
 
 bool init_platform(Window* window, Input* input)
 {
+	WINDOW_ptr = window;
+	INPUT_ptr = input;
+
 	glfwSetErrorCallback(glfw_error_callback);
 
 	int result = glfwInit();
+
+#if defined(__APPLE__)
+	glfwInitHint(GLFW_COCOA_CHDIR_RESOURCES, GLFW_FALSE);
+#endif
+
 	if (result == GLFW_FALSE) { printf("Failed to initialize GLFW"); return false; }
 	glfwDefaultWindowHints();
+
+	//region flags
+	if ((WINDOW_ptr->flags & FLAG_FULLSCREEN_MODE) > 0)
+	{
+		printf("Window Is Fullscreen");
+		WINDOW_ptr->fullscreen = true;
+	}
+
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_HIDDEN) > 0) glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // Visible window
+	else glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);     // Window initially hidden
+
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_UNDECORATED) > 0) glfwWindowHint(GLFW_DECORATED, GLFW_FALSE); // Border and buttons on Window
+	else glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);   // Decorated window
+
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_RESIZABLE) > 0) glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // Resizable window
+	else glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);  // Avoid window being resizable
+
+	// Disable FLAG_WINDOW_MINIMIZED, not supported on initialization
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_MINIMIZED) > 0) WINDOW_ptr->flags &= ~FLAG_WINDOW_MINIMIZED;
+
+	// Disable FLAG_WINDOW_MAXIMIZED, not supported on initialization
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_MAXIMIZED) > 0) WINDOW_ptr->flags &= ~FLAG_WINDOW_MAXIMIZED;
+
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_UNFOCUSED) > 0) glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
+	else glfwWindowHint(GLFW_FOCUSED, GLFW_TRUE);
+
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_TOPMOST) > 0) glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+	else glfwWindowHint(GLFW_FLOATING, GLFW_FALSE);
+
+	// NOTE: Some GLFW flags are not supported on HTML5
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_TRANSPARENT) > 0) glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);     // Transparent framebuffer
+	else glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);  // Opaque framebuffer
+
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_HIGHDPI) > 0)
+	{
+		// Resize window content area based on the monitor content scale.
+		// NOTE: This hint only has an effect on platforms where screen coordinates and pixels always map 1:1 such as Windows and X11.
+		// On platforms like macOS the resolution of the framebuffer is changed independently of the window size.
+		glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);   // Scale content area based on the monitor content scale where window is placed on
+#if defined(__APPLE__)
+		glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE);
+#endif
+	}
+	else glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
+
+	// Mouse passthrough
+	if ((WINDOW_ptr->flags & FLAG_WINDOW_MOUSE_PASSTHROUGH) > 0) glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, GLFW_TRUE);
+	else glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, GLFW_FALSE);
+
+	if (WINDOW_ptr->flags & FLAG_MSAA_4X_HINT)
+		glfwWindowHint(GLFW_SAMPLES, 4);   // Tries to enable multisampling x4 (MSAA), default is 0
+	//endregion
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, COAL_PROFILE_MAJOR);          // Choose OpenGL major version (just hint)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, COAL_PROFILE_MINOR);          // Choose OpenGL minor version (just hint)
@@ -311,52 +323,6 @@ bool init_platform(Window* window, Input* input)
 
 	glfwSetJoystickCallback(NULL);
 
-	//region flags
-	if ((window->flags & FLAG_WINDOW_HIDDEN) > 0) glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // Visible window
-	else glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);     // Window initially hidden
-
-	if ((window->flags & FLAG_WINDOW_UNDECORATED) > 0) glfwWindowHint(GLFW_DECORATED, GLFW_FALSE); // Border and buttons on Window
-	else glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);   // Decorated window
-
-	if ((window->flags & FLAG_WINDOW_RESIZABLE) > 0) glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // Resizable window
-	else glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);  // Avoid window being resizable
-
-	// Disable FLAG_WINDOW_MINIMIZED, not supported on initialization
-	if ((window->flags & FLAG_WINDOW_MINIMIZED) > 0) window->flags &= ~FLAG_WINDOW_MINIMIZED;
-
-	// Disable FLAG_WINDOW_MAXIMIZED, not supported on initialization
-	if ((window->flags & FLAG_WINDOW_MAXIMIZED) > 0) window->flags &= ~FLAG_WINDOW_MAXIMIZED;
-
-	if ((window->flags & FLAG_WINDOW_UNFOCUSED) > 0) glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
-	else glfwWindowHint(GLFW_FOCUSED, GLFW_TRUE);
-
-	if ((window->flags & FLAG_WINDOW_TOPMOST) > 0) glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
-	else glfwWindowHint(GLFW_FLOATING, GLFW_FALSE);
-
-	// NOTE: Some GLFW flags are not supported on HTML5
-	if ((window->flags & FLAG_WINDOW_TRANSPARENT) > 0) glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);     // Transparent framebuffer
-	else glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);  // Opaque framebuffer
-
-	if ((window->flags & FLAG_WINDOW_HIGHDPI) > 0)
-	{
-		// Resize window content area based on the monitor content scale.
-		// NOTE: This hint only has an effect on platforms where screen coordinates and pixels always map 1:1 such as Windows and X11.
-		// On platforms like macOS the resolution of the framebuffer is changed independently of the window size.
-		glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);   // Scale content area based on the monitor content scale where window is placed on
-#if defined(PLATFORM_MAC)
-		glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE);
-#endif
-	}
-	else glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
-
-	// Mouse passthrough
-	if ((window->flags & FLAG_WINDOW_MOUSE_PASSTHROUGH) > 0) glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, GLFW_TRUE);
-	else glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, GLFW_FALSE);
-
-	if (window->flags & FLAG_MSAA_4X_HINT)
-		glfwWindowHint(GLFW_SAMPLES, 4);   // Tries to enable multisampling x4 (MSAA), default is 0
-	//endregion
-
 	// Find monitor resolution
 	GLFWmonitor *monitor = glfwGetPrimaryMonitor();
 	if (!monitor)
@@ -364,11 +330,6 @@ bool init_platform(Window* window, Input* input)
 		printf("GLFW: Failed to get primary monitor");
 		return false;
 	}
-
-	const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-
-	window->display.width = mode->width;
-	window->display.height = mode->height;
 
 	// Set screen width/height to the display width/height if they are 0
 	if (window->screen.width == 0) window->screen.width = window->display.width;
@@ -466,7 +427,6 @@ bool init_platform(Window* window, Input* input)
 		{
 			// WARNING: It seems to hit a critical render path in Intel HD Graphics
 			glfwSwapInterval(1);
-			printf("DISPLAY: Trying to enable VSYNC");
 		}
 
 		int fbWidth = (int)window->screen.width;
@@ -476,7 +436,7 @@ bool init_platform(Window* window, Input* input)
 		{
 			// NOTE: On APPLE platforms system should manage window/input scaling and also framebuffer scaling.
 			// Framebuffer scaling should be activated with: glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE);
-#if !defined(PLATFORM_MAC)
+#if defined(PLATFORM_MAC)
 			glfwGetFramebufferSize(window->platformHandle, &fbWidth, &fbHeight);
 
 			// Screen scaling matrix is required in case desired screen area is different from display area
@@ -491,11 +451,9 @@ bool init_platform(Window* window, Input* input)
 		window->render.height = fbHeight;
 		window->currentFbo.width = fbWidth;
 		window->currentFbo.height = fbHeight;
+
 	}
 	else return false;
-
-	WINDOW_ptr = window;
-	INPUT_ptr = input;
 
 	if ((window->flags & FLAG_WINDOW_MINIMIZED) > 0) minimize_window();
 
@@ -504,9 +462,14 @@ bool init_platform(Window* window, Input* input)
 	else set_window_position((int)(get_monitor_width(get_current_monitor()) / 2 - WINDOW_ptr->screen.width / 2),
 							 (int)(get_monitor_height(get_current_monitor()) / 2 - WINDOW_ptr->screen.height / 2));
 
+	if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	{
+		printf("Unable to load glad!!!");
+		return false;
+	}
+
 	// Load OpenGL extensions
 	// NOTE: GL procedures address loader is required to load extensions
-//	rlLoadExtensions(glfwGetProcAddress);
 	//----------------------------------------------------------------------------
 
 	// Initialize input events callbacks
@@ -531,10 +494,20 @@ bool init_platform(Window* window, Input* input)
 	// Retrieve gamepad names
 	for (int i = 0; i < MAX_GAMEPADS; i++)
 	{
-		if (glfwJoystickPresent(i)) strcpy(input->Gamepad.name[i], glfwGetJoystickName(i));
+		if (glfwJoystickPresent(i))
+		{
+			strcpy_s(input->Gamepad.name[i], sizeof(input->Gamepad.name[i]), glfwGetJoystickName(i));
+//			strcpy(input->Gamepad.name[i], glfwGetJoystickName(i));
+		}
 	}
 
 	return true;
+}
+
+void terminate_platform()
+{
+	glfwDestroyWindow(WINDOW_ptr->platformHandle);
+	glfwTerminate();
 }
 
 //region Window
@@ -1017,6 +990,69 @@ void set_window_focused(void)
 	glfwFocusWindow(WINDOW_ptr->platformHandle);
 }
 
+// Set icon for window
+// NOTE 1: Image must be in RGBA format, 8bit per channel
+// NOTE 2: Image is scaled by the OS for all required sizes
+void set_window_icon(Image image)
+{
+	if (image.data == NULL)
+	{
+		// Revert to the default window icon, pass in an empty image array
+		glfwSetWindowIcon(WINDOW_ptr->platformHandle, 0, NULL);
+	}
+	else
+	{
+		if (image.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8)
+		{
+			GLFWimage icon[1] = { 0 };
+
+			icon[0].width = image.size.x;
+			icon[0].height = image.size.y;
+			icon[0].pixels = (unsigned char *)image.data;
+
+			// NOTE 1: We only support one image icon
+			// NOTE 2: The specified image data is copied before this function returns
+			glfwSetWindowIcon(WINDOW_ptr->platformHandle, 1, icon);
+		}
+		else printf("GLFW: Window icon image must be in R8G8B8A8 pixel format");
+	}
+}
+
+// Set icon for window, multiple images
+// NOTE 1: Images must be in RGBA format, 8bit per channel
+// NOTE 2: The multiple images are used depending on provided sizes
+// Standard Windows icon sizes: 256, 128, 96, 64, 48, 32, 24, 16
+void set_window_icons(Image* images, int count)
+{
+	if ((images == NULL) || (count <= 0))
+	{
+		// Revert to the default window icon, pass in an empty image array
+		glfwSetWindowIcon(WINDOW_ptr->platformHandle, 0, NULL);
+	}
+	else
+	{
+		int valid = 0;
+		GLFWimage *icons = calloc(count, sizeof(GLFWimage));
+
+		for (int i = 0; i < count; i++)
+		{
+			if (images[i].format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8)
+			{
+				icons[valid].width = images[i].size.x;
+				icons[valid].height = images[i].size.y;
+				icons[valid].pixels = (unsigned char *)images[i].data;
+
+				valid++;
+			}
+			else printf("GLFW: Window icon image must be in R8G8B8A8 pixel format");
+		}
+		// NOTE: Images data is copied internally before this function returns
+		glfwSetWindowIcon(WINDOW_ptr->platformHandle, valid, icons);
+
+		free(icons);
+	}
+}
+
 // Get native window handle
 void *get_window_handle(void)
 {
@@ -1158,12 +1194,6 @@ void set_mouse_cursor(int cursor)
 // Register all input events
 void poll_input_events(void)
 {
-#if defined(SUPPORT_GESTURES_SYSTEM)
-	// NOTE: Gestures update must be called every frame to reset gestures correctly
-    // because ProcessGestureEvent() is just called on an event, not every frame
-    UpdateGestures();
-#endif
-
 	// Reset keys/chars pressed registered
 	INPUT_ptr->Keyboard.keyPressedQueueCount = 0;
 	INPUT_ptr->Keyboard.charPressedQueueCount = 0;
@@ -1511,3 +1541,4 @@ const char *get_monitor_name(int monitor)
 	return "";
 }
 //endregion
+#pragma clang diagnostic pop

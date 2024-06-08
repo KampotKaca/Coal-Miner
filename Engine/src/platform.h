@@ -3,7 +3,120 @@
 
 #include "coal_miner.h"
 
+//region Important Structures
+
+typedef enum ConfigFlags
+{
+	FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU
+	FLAG_FULLSCREEN_MODE    = 0x00000002,   // Set to run program in fullscreen
+	FLAG_WINDOW_RESIZABLE   = 0x00000004,   // Set to allow resizable window
+	FLAG_WINDOW_UNDECORATED = 0x00000008,   // Set to disable window decoration (frame and buttons)
+	FLAG_WINDOW_HIDDEN      = 0x00000080,   // Set to hide window
+	FLAG_WINDOW_MINIMIZED   = 0x00000200,   // Set to minimize window (iconify)
+	FLAG_WINDOW_MAXIMIZED   = 0x00000400,   // Set to maximize window (expanded to monitor)
+	FLAG_WINDOW_UNFOCUSED   = 0x00000800,   // Set to window non focused
+	FLAG_WINDOW_TOPMOST     = 0x00001000,   // Set to window always on top
+	FLAG_WINDOW_ALWAYS_RUN  = 0x00000100,   // Set to allow windows running while minimized
+	FLAG_WINDOW_TRANSPARENT = 0x00000010,   // Set to allow transparent framebuffer
+	FLAG_WINDOW_HIGHDPI     = 0x00002000,   // Set to support HighDPI
+	FLAG_WINDOW_MOUSE_PASSTHROUGH = 0x00004000, // Set to support mouse passthrough, only supported when FLAG_WINDOW_UNDECORATED
+	FLAG_BORDERLESS_WINDOWED_MODE = 0x00008000, // Set to run program in borderless windowed mode
+	FLAG_MSAA_4X_HINT       = 0x00000020,   // Set to try enabling MSAA 4X
+	FLAG_INTERLACED_HINT    = 0x00010000    // Set to try enabling interlaced video format (for V3D)
+} ConfigFlags;
+
+typedef struct Point { int x; int y; } Point;
+typedef struct Size { unsigned int width; unsigned int height; } Size;
+
+typedef struct Window
+{
+	const char *title;                  // Window text title const pointer
+	unsigned int flags;                 // Configuration flags (bit based), keeps window state
+	bool ready;                         // Check if window has been initialized successfully
+	bool shouldClose;                   // Check if window set for closing
+	bool fullscreen;                    // Check if fullscreen mode is enabled
+	bool resizedLastFrame;              // Check if window has been resized last frame
+	bool eventWaiting;                  // Wait for events before ending frame
+	bool usingFbo;                      // Using FBO (RenderTexture) for rendering instead of default framebuffer
+
+	Point position;                     // Window position (required on fullscreen toggle)
+	Point previousPosition;             // Window previous position (required on borderless windowed toggle)
+	Size display;                       // Display width and height (monitor, device-screen, LCD, ...)
+	Size screen;                        // Screen width and height (used render area)
+	Size previousScreen;                // Screen previous width and height (required on borderless windowed toggle)
+	Size currentFbo;                    // Current render width and height (depends on active fbo)
+	Size render;                        // Framebuffer width and height (render area, including black bars if required)
+	Point renderOffset;                 // Offset from render area (must be divided by 2)
+	Size screenMin;                     // Screen minimum width and height (for resizable window)
+	Size screenMax;                     // Screen maximum width and height (for resizable window)
+	M4x4 screenScale;                 // Matrix to scale screen (framebuffer rendering)
+
+	void* platformHandle;
+
+} Window;
+
+typedef struct Input
+{
+	struct Keyboard
+	{
+		int exitKey;                    // Default exit key
+		char currentKeyState[MAX_KEYBOARD_KEYS]; // Registers current frame key state
+		char previousKeyState[MAX_KEYBOARD_KEYS]; // Registers previous frame key state
+
+		// NOTE: Since key press logic involves comparing prev vs cur key state, we need to handle key repeats specially
+		char keyRepeatInFrame[MAX_KEYBOARD_KEYS]; // Registers key repeats for current frame.
+
+		int keyPressedQueue[MAX_KEY_PRESSED_QUEUE]; // Input keys queue
+		int keyPressedQueueCount;       // Input keys queue count
+
+		int charPressedQueue[MAX_CHAR_PRESSED_QUEUE]; // Input characters queue (unicode)
+		int charPressedQueueCount;      // Input characters queue count
+
+	} Keyboard;
+	struct Mouse
+	{
+		V2 offset;                 // Mouse offset
+		V2 scale;                  // Mouse scaling
+		V2 currentPosition;        // Mouse position on screen
+		V2 previousPosition;       // Previous mouse position
+
+		int cursor;                     // Tracks current mouse cursor
+		bool cursorHidden;              // Track if cursor is hidden
+		bool cursorOnScreen;            // Tracks if cursor is inside client area
+
+		char currentButtonState[MAX_MOUSE_BUTTONS];     // Registers current mouse button state
+		char previousButtonState[MAX_MOUSE_BUTTONS];    // Registers previous mouse button state
+		V2 currentWheelMove;       // Registers current mouse wheel variation
+		V2 previousWheelMove;      // Registers previous mouse wheel variation
+
+	} Mouse;
+	struct Touch
+	{
+		int pointCount;                             // Number of touch points active
+		int pointId[MAX_TOUCH_POINTS];              // Point identifiers
+		V2 position[MAX_TOUCH_POINTS];         // Touch position on screen
+		char currentTouchState[MAX_TOUCH_POINTS];   // Registers current touch state
+		char previousTouchState[MAX_TOUCH_POINTS];  // Registers previous touch state
+
+	} Touch;
+	struct Gamepad
+	{
+		int lastButtonPressed;          // Register last gamepad button pressed
+		int axisCount[MAX_GAMEPADS];                  // Register number of available gamepad axis
+		bool ready[MAX_GAMEPADS];       // Flag to know if gamepad is ready
+		char name[MAX_GAMEPADS][64];    // Gamepad name holder
+		char currentButtonState[MAX_GAMEPADS][MAX_GAMEPAD_BUTTONS];     // Current gamepad buttons state
+		char previousButtonState[MAX_GAMEPADS][MAX_GAMEPAD_BUTTONS];    // Previous gamepad buttons state
+		float axisState[MAX_GAMEPADS][MAX_GAMEPAD_AXIS];                // Gamepad axis state
+
+	} Gamepad;
+} Input;
+
+//endregion
+
 bool init_platform(Window* window, Input* input);
+void terminate_platform();
+
 void setup_viewport(int width, int height);
 
 //region Window
@@ -23,6 +136,9 @@ void set_window_max_size(int width, int height);
 void set_window_size(int width, int height);
 void set_window_opacity(float opacity);
 void set_window_focused(void);
+
+void set_window_icon(Image image);
+void set_window_icons(Image* images, int count);
 
 void *get_window_handle(void);
 V2 get_window_position(void);

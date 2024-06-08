@@ -2,6 +2,6 @@
 
 int main(void)
 {
-	run_engine();
+	coal_run();
 	return 0;
 }

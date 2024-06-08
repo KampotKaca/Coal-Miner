@@ -1,7 +1,8 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
-#include "coal_miner.h"
+#include "platform.h"
+#include "coal_miner_internal.h"
 
 void create_window(unsigned int width, unsigned int height, const char* title);
 void set_window_flags(ConfigFlags hint);
@@ -9,6 +10,6 @@ bool window_should_close();
 void begin_draw();
 void end_draw();
 
-void terminate_window();
+void close_window();
 
 #endif //WINDOW_H
