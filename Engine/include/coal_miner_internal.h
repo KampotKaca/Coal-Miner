@@ -33,6 +33,15 @@ typedef struct EngineData
 	unsigned int windowHeight;
 	const char* title;
 	const char* iconLocation;
+
+	void (*awakeCallback)();
+
+	void (*updateCallback)();
+	void (*renderCallback)();
+
+	void (*frameEndCallback)();
+	void (*appCloseCallback)();
+
 }EngineData;
 
 //endregion

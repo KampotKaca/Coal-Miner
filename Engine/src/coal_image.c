@@ -354,12 +354,3 @@ Image load_image_from_memory(const char *fileType, const unsigned char *fileData
 	
 	return image;
 }
-
-const char *cm_get_file_extension(const char *filePath)
-{
-	const char *dot = strrchr(filePath, '.');
-	
-	if (!dot || dot == filePath) return NULL;
-	
-	return dot;
-}

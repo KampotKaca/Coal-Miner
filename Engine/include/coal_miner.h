@@ -292,6 +292,13 @@ typedef struct RenderTexture
 	Texture texture;        // Color buffer attachment texture
 	Texture depth;          // Depth buffer attachment texture
 } RenderTexture;
+
+// Shader
+typedef struct Shader
+{
+	unsigned int id;        // Shader program id
+	int *locs;              // Shader locations array (MAX_SHADER_LOCATIONS)
+} Shader;
 //endregion
 
 extern Image cm_load_image(const char* filePath);
@@ -301,6 +308,12 @@ extern Image cm_load_image_raw(const char *filePath, int width, int height, int 
 extern Image cm_load_image_svg(const char *fileNameOrString, int width, int height);
 extern Texture cm_load_texture(const char* filePath);
 extern Texture cm_load_texture_from_image(Image image);
+extern Shader cm_load_shader(const char *vsPath, const char *fsPath);
+extern Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode);
+extern void cm_unload_shader(Shader shader);
+
 extern const char *cm_get_file_extension(const char *filePath);
+char *cm_load_file_text(const char *filePath);
+void cm_unload_file_text(char *text);
 
 #endif //COAL_MINER_H

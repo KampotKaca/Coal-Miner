@@ -1,6 +1,7 @@
 #include "coal_gl.h"
 #include <glad/glad.h>
 #include "coal_image.h"
+#include "coal_miner.h"
 
 static int GetPixelDataSize(int width, int height, int format);
 
@@ -191,4 +192,177 @@ static int GetPixelDataSize(int width, int height, int format)
 	}
 	
 	return dataSize;
+}
+
+Shader cm_load_shader(const char *vsPath, const char *fsPath)
+{
+	Shader shader;
+
+	char *vShaderStr = NULL;
+	char *fShaderStr = NULL;
+
+	if (vsPath != NULL) vShaderStr = cm_load_file_text(vsPath);
+	if (fsPath != NULL) fShaderStr = cm_load_file_text(fsPath);
+
+	shader = cm_load_shader_from_memory(vShaderStr, fShaderStr);
+
+	cm_unload_file_text(vShaderStr);
+	cm_unload_file_text(fShaderStr);
+
+	return shader;
+}
+
+Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode)
+{
+	Shader shader = { 0 };
+
+	unsigned int vertexShaderId = 0;
+    unsigned int fragmentShaderId = 0;
+
+    // Compile vertex shader (if provided)
+    if (vsCode != NULL) vertexShaderId = compile_shader(vsCode, GL_VERTEX_SHADER);
+
+    // Compile fragment shader (if provided)
+    if (fsCode != NULL) fragmentShaderId = compile_shader(fsCode, GL_FRAGMENT_SHADER);
+
+	// One of or both shader are new, we need to compile a new shader program
+	shader.id = load_shader_program(vertexShaderId, fragmentShaderId);
+
+	// Get available shader uniforms
+	// NOTE: This information is useful for debug...
+	int uniformCount = -1;
+	glGetProgramiv(shader.id, GL_ACTIVE_UNIFORMS, &uniformCount);
+
+	for (int i = 0; i < uniformCount; i++)
+	{
+		int namelen = -1;
+		int num = -1;
+		char name[256] = { 0 };     // Assume no variable names longer than 256
+		GLenum type = GL_ZERO;
+
+		// Get the name of the uniforms
+		glGetActiveUniform(shader.id, i, sizeof(name) - 1, &namelen, &num, &type, name);
+
+		name[namelen] = 0;
+		printf("SHADER: [ID %i] Active uniform (%s) set at location: %i", shader.id, name, glGetUniformLocation(shader.id, name));
+	}
+
+	// We can detach and delete vertex/fragment shaders (if not default ones)
+	// NOTE: We detach shader before deletion to make sure memory is freed
+	if (vertexShaderId != 0)
+	{
+		// WARNING: Shader program linkage could fail and returned id is 0
+		if (shader.id > 0) glDetachShader(shader.id, vertexShaderId);
+		glDeleteShader(vertexShaderId);
+	}
+	if (fragmentShaderId != 0)
+	{
+		// WARNING: Shader program linkage could fail and returned id is 0
+		if (shader.id > 0) glDetachShader(shader.id, fragmentShaderId);
+		glDeleteShader(fragmentShaderId);
+	}
+
+	return shader;
+}
+
+void cm_unload_shader(Shader shader)
+{
+	if (shader.id != 0)
+	{
+		unload_shader_program(shader.id);
+		// NOTE: If shader loading failed, it should be 0
+		CM_FREE(shader.locs);
+	}
+}
+
+unsigned int compile_shader(const char *shaderCode, int type)
+{
+	unsigned int shader;
+
+	shader = glCreateShader(type);
+    glShaderSource(shader, 1, &shaderCode, NULL);
+
+    GLint success = 0;
+    glCompileShader(shader);
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+
+    if (success == GL_FALSE)
+    {
+        switch (type)
+        {
+            case GL_VERTEX_SHADER: printf("SHADER: [ID %i] Failed to compile vertex shader code", shader); break;
+            case GL_FRAGMENT_SHADER: printf("SHADER: [ID %i] Failed to compile fragment shader code", shader); break;
+            //case GL_GEOMETRY_SHADER:
+            case GL_COMPUTE_SHADER: printf("SHADER: [ID %i] Failed to compile compute shader code", shader); break;
+            default: break;
+        }
+
+        int maxLength = 0;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
+
+        if (maxLength > 0)
+        {
+            int length = 0;
+            char *log = (char *)CM_CALLOC(maxLength, sizeof(char));
+            glGetShaderInfoLog(shader, maxLength, &length, log);
+            printf("SHADER: [ID %i] Compile error: %s", shader, log);
+            CM_FREE(log);
+        }
+    }
+    else
+    {
+        switch (type)
+        {
+            case GL_VERTEX_SHADER: printf("SHADER: [ID %i] Vertex shader compiled successfully", shader); break;
+            case GL_FRAGMENT_SHADER: printf("SHADER: [ID %i] Fragment shader compiled successfully", shader); break;
+            case GL_COMPUTE_SHADER: printf("SHADER: [ID %i] Compute shader compiled successfully", shader); break;
+            default: break;
+        }
+    }
+
+	return shader;
+}
+
+unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId)
+{
+	unsigned int program = 0;
+
+	GLint success = 0;
+    program = glCreateProgram();
+
+    glAttachShader(program, vShaderId);
+    glAttachShader(program, fShaderId);
+    glLinkProgram(program);
+
+    // NOTE: All uniform variables are intitialised to 0 when a program links
+
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+
+    if (success == GL_FALSE)
+    {
+        printf("SHADER: [ID %i] Failed to link shader program", program);
+
+        int maxLength = 0;
+        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
+
+        if (maxLength > 0)
+        {
+            int length = 0;
+            char *log = (char *)CM_CALLOC(maxLength, sizeof(char));
+            glGetProgramInfoLog(program, maxLength, &length, log);
+	        printf("SHADER: [ID %i] Link error: %s", program, log);
+            CM_FREE(log);
+        }
+
+        glDeleteProgram(program);
+
+        program = 0;
+    }
+    else printf("SHADER: [ID %i] Program shader loaded successfully", program);
+	return program;
+}
+
+void unload_shader_program(unsigned int id)
+{
+	glDeleteProgram(id);
 }

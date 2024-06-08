@@ -5,7 +5,40 @@
 Window WINDOW;
 Input INPUT;
 
-void create_window(unsigned int width, unsigned int height, const char *title)
+Image icons[MAX_NUM_APPLICATION_ICONS];
+int iconCount;
+
+int FillWithAppIcons(const char* filePath, Image* storeLocation)
+{
+	struct dirent *entry;
+	DIR *dir = opendir(filePath);
+
+	if (dir == NULL)
+	{
+		printf("%s", filePath);
+		perror("Unable to open directory");
+		return 0;
+	}
+
+	int imageId = 0;
+	while ((entry = readdir(dir)) && imageId < MAX_NUM_APPLICATION_ICONS)
+	{
+		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+
+		char newPath[MAX_PATH_SIZE];
+		snprintf(newPath, MAX_PATH_SIZE, "%s/%s", filePath, entry->d_name);
+
+		storeLocation[imageId] = cm_load_image(newPath);
+		printf("%s\n", newPath);
+		imageId++;
+	}
+
+	closedir(dir);
+	return imageId;
+}
+
+void create_window(unsigned int width, unsigned int height,
+				   const char *title, const char* iconLocation)
 {
 	WINDOW.display.width = width;
 	WINDOW.display.height = height;
@@ -24,6 +57,14 @@ void create_window(unsigned int width, unsigned int height, const char *title)
 	{
 		printf("Unable to load glfw window!!!");
 		return;
+	}
+
+	iconCount = 0;
+
+	if(iconLocation != NULL)
+	{
+		iconCount = FillWithAppIcons(iconLocation, icons);
+		cm_set_window_icons(icons, iconCount);
 	}
 
 	glDepthFunc(GL_LEQUAL);                                 // Type of depth testing to apply
@@ -74,6 +115,7 @@ void end_draw()
 
 void close_window()
 {
+	cm_unload_images(icons, iconCount);
 	WINDOW.ready = false;
 	terminate_platform();
 }
