@@ -24,6 +24,9 @@ unsigned int compile_shader(const char *shaderCode, int type);
 unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId);
 void unload_shader_program(unsigned int id);
 
+void upload_ubos();
+void unload_ubos();
+
 void enable_color_blend(void);
 void disable_color_blend(void);
 void enable_depth_test(void);

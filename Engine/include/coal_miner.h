@@ -363,12 +363,49 @@ typedef struct Camera3D
 	float farPlane;
 } Camera3D;
 
+typedef struct Vbo
+{
+	unsigned int id;
+	unsigned int dataSize;
+	bool isStatic;
+	void* data;
+}Vbo;
+
+typedef struct VaoAttribute
+{
+	unsigned int size;
+	unsigned int type;
+	bool normalized;
+	unsigned int stride;
+}VaoAttribute;
+
+typedef struct Vao
+{
+	unsigned int id;
+	VaoAttribute* attributes;
+	unsigned int attributeCount;
+	Vbo* vbos;
+	unsigned int vboCount;
+}Vao;
+
 // Camera projection
 typedef enum CameraProjection
 {
 	CAMERA_PERSPECTIVE = 0,         // Perspective projection
 	CAMERA_ORTHOGRAPHIC             // Orthographic projection
 } CameraProjection;
+
+typedef enum VaoDataType
+{
+	CM_BYTE = 0x1400,
+	CM_UBYTE = 0x1401,
+	CM_SHORT = 0x1402,
+	CM_USHORT = 0x1403,
+	CM_INT = 0x1404,
+	CM_UINT = 0x1405,
+	CM_HALF_FLOAT = 0x140B,
+	CM_FLOAT = 0x1406,
+} VaoDataType;
 
 //endregion
 
@@ -388,6 +425,14 @@ extern void cm_end_shader_mode();
 
 extern void cm_begin_mode_3d(Camera3D camera);
 extern void cm_end_mode_3d();
+
+extern bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data);
+extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo* vbos, unsigned int vboCount);
+extern void cm_unload_vao(Vao vao);
+extern Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic);
+extern void cm_unload_vbo(Vbo vbo);
+
+extern void cm_draw_vao(Vao vao);
 
 extern const char *cm_get_file_extension(const char *filePath);
 char *cm_load_file_text(const char *filePath);

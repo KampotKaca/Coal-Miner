@@ -3,6 +3,7 @@
 
 #include "window.h"
 
-void setup_renderer(Window* windowPtr);
+void load_renderer(Window* wPtr);
+void unload_renderer();
 
 #endif //RENDERING_H

@@ -3,6 +3,18 @@
 #include "coal_image.h"
 #include "coal_miner.h"
 
+typedef struct Ubo
+{
+	bool isReady;
+	unsigned int id;
+	unsigned int blockId;
+	unsigned int dataSize;
+	void* data;
+} Ubo;
+
+Ubo ubos[MAX_NUM_UBOS];
+unsigned int uboCount;
+
 static int GetPixelDataSize(int width, int height, int format);
 
 const char *get_pixel_format_name(unsigned int format)
@@ -247,6 +259,21 @@ Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode)
 		printf("SHADER: [ID %i] Active uniform (%s) set at location: %i", shader.id, name, glGetUniformLocation(shader.id, name));
 	}
 
+	GLenum properties[] = {GL_BUFFER_BINDING};
+	for (int i = 0; i < uboCount; ++i)
+	{
+		GLint bindingIndex;
+		glGetProgramResourceiv(shader.id, GL_UNIFORM_BLOCK, ubos[i].blockId, 1, properties, 1, NULL, &bindingIndex);
+
+		if(bindingIndex > 0)
+		{
+			glBindBuffer(GL_UNIFORM_BUFFER, ubos[i].id);
+			glUniformBlockBinding(shader.id, ubos[i].blockId, 0);
+			glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubos[i].id);
+			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		}
+	}
+
 	// We can detach and delete vertex/fragment shaders (if not default ones)
 	// NOTE: We detach shader before deletion to make sure memory is freed
 	if (vertexShaderId != 0)
@@ -325,7 +352,7 @@ unsigned int compile_shader(const char *shaderCode, int type)
 
 unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId)
 {
-	unsigned int program = 0;
+	unsigned int program;
 
 	GLint success = 0;
     program = glCreateProgram();
@@ -365,6 +392,114 @@ unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId)
 void unload_shader_program(unsigned int id)
 {
 	glDeleteProgram(id);
+}
+
+bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data)
+{
+	if(uboCount == MAX_NUM_UBOS)
+	{
+		perror("Maximum amount of Ubos reached please allocate more space from config file");
+		return false;
+	}
+
+	Ubo ubo = {};
+	ubo.dataSize = dataSize;
+	ubo.data = data;
+	ubo.blockId = blockId;
+	glGenBuffers(1, &ubo.id);
+	glBindBuffer(GL_UNIFORM_BUFFER, ubo.id);
+	glBufferData(GL_UNIFORM_BUFFER, dataSize, data, GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	ubo.isReady = true;
+	ubos[uboCount] = ubo;
+	uboCount++;
+	return true;
+}
+
+void upload_ubos()
+{
+	for (int i = 0; i < uboCount; ++i)
+	{
+		glBindBuffer(GL_UNIFORM_BUFFER, ubos[i].id);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, ubos[i].dataSize, ubos[i].data);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	}
+}
+
+void unload_ubos()
+{
+	for (int i = 0; i < uboCount; ++i)
+	{
+		glDeleteBuffers(1, &ubos[i].id);
+		ubos[i].isReady = false;
+	}
+	uboCount = 0;
+}
+
+Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo* vbos, unsigned int vboCount)
+{
+	Vao vao = { 0 };
+	vao.attributeCount = attributeCount;
+	vao.attributes = CM_CALLOC(attributeCount, sizeof(VaoAttribute));
+	vao.vbos = CM_CALLOC(vboCount, sizeof(Vbo));
+	vao.vboCount = vboCount;
+	memcpy(vao.attributes, attributes, attributeCount * sizeof(VaoAttribute));
+	glGenVertexArrays(1, &vao.id);
+	glBindVertexArray(vao.id);
+
+	for (int i = 0; i < vao.vboCount; ++i)
+		vao.vbos[i] = cm_load_vbo(vbos[i].dataSize, vbos[i].data, vbos[i].isStatic);
+
+	unsigned int offset = 0;
+	for (int i = 0; i < vao.attributeCount; ++i)
+	{
+		glVertexAttribPointer(i, (int)vao.attributes[i].size,
+							  vao.attributes[i].type,
+							  vao.attributes[i].normalized,
+							  (int)vao.attributes[i].stride, &offset);
+		offset += vao.attributes[i].stride;
+		glEnableVertexAttribArray(i);
+	}
+
+	glBindVertexArray(0);
+
+	return vao;
+}
+
+void cm_unload_vao(Vao vao)
+{
+	for (int i = 0; i < vao.vboCount; ++i)
+		cm_unload_vbo(vao.vbos[i]);
+	glDeleteVertexArrays(1, &vao.id);
+	CM_FREE(vao.attributes);
+	CM_FREE(vao.vbos);
+}
+
+Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic)
+{
+	Vbo vbo = { 0 };
+	vbo.dataSize = dataSize;
+	vbo.data = data;
+	vbo.isStatic = isStatic;
+	glGenBuffers(1, &vbo.id);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo.id);
+
+	if(vbo.isStatic) glBufferData(GL_ARRAY_BUFFER, vbo.dataSize, vbo.data, GL_STATIC_DRAW);
+	else glBufferData(GL_ARRAY_BUFFER, vbo.dataSize, vbo.data, GL_DYNAMIC_DRAW);
+
+	return vbo;
+}
+
+void cm_unload_vbo(Vbo vbo)
+{
+	glDeleteBuffers(1, &vbo.id);
+}
+
+extern void cm_draw_vao(Vao vao)
+{
+	glBindVertexArray(vao.id);
+	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void cm_begin_shader_mode(Shader shader)

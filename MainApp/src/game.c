@@ -3,6 +3,14 @@
 
 Shader shader;
 Camera3D camera;
+Vao vao;
+
+float vertices[] =
+{
+	0.5f,  0.5f, 0.0f,  // top right
+	0.5f, -0.5f, 0.0f,  // bottom right
+	-0.5f, -0.5f, 0.0f,  // bottom left
+};
 
 void game_awake()
 {
@@ -19,7 +27,19 @@ void game_awake()
 	camera.target = v3_zero();
 	camera.position = (V3) { 0, 5, -5 };
 	camera.projection = CAMERA_PERSPECTIVE;
+	camera.up = (V3){ 0, 1, 0 };
 	camera.fov = 45;
+
+	VaoAttribute attributes[] =
+	{
+		{ 3, CM_FLOAT, false, 3 * sizeof(float) }
+	};
+
+	Vbo vbos[] =
+	{
+		{ 0, 9 * sizeof(float), true, vertices }
+	};
+	vao = cm_load_vao(attributes, 1, vbos, 1);
 }
 
 void game_update()
@@ -29,8 +49,13 @@ void game_update()
 
 void game_render()
 {
-	cm_begin_mode_3d(camera);
-	cm_end_mode_3d();
+//	cm_begin_mode_3d(camera);
+	cm_begin_shader_mode(shader);
+
+	cm_draw_vao(vao);
+
+	cm_end_shader_mode();
+//	cm_end_mode_3d();
 }
 
 void game_frame_end()
@@ -40,5 +65,6 @@ void game_frame_end()
 
 void game_close()
 {
+	cm_unload_vao(vao);
 	cm_unload_shader(shader);
 }

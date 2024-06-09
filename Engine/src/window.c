@@ -89,8 +89,8 @@ void create_window(unsigned int width, unsigned int height,
 	setup_viewport((int)WINDOW.currentFbo.width, (int)WINDOW.currentFbo.height);
 
 	WINDOW.shouldClose = false;
-	
-	setup_renderer(&WINDOW);
+
+	load_renderer(&WINDOW);
 }
 
 void set_window_flags(ConfigFlags hint)
@@ -118,6 +118,7 @@ void end_draw()
 
 void close_window()
 {
+	unload_renderer();
 	cm_unload_images(icons, iconCount);
 	WINDOW.ready = false;
 	terminate_platform();
