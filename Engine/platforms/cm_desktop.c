@@ -201,7 +201,7 @@ void setup_framebuffer(Window* window)
 
 		// Screen scaling required
 		float scaleRatio = (float)window->render.width/(float)window->screen.width;
-		window->screenScale = matrix_scale(scaleRatio, scaleRatio, 1.0f);
+		window->screenScale = m4x4_scale(scaleRatio, scaleRatio, 1.0f);
 
 		// NOTE: We render to full display resolution!
 		// We just need to calculate above parameters for downscale matrix and offsets

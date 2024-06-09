@@ -366,3 +366,76 @@ void unload_shader_program(unsigned int id)
 {
 	glDeleteProgram(id);
 }
+
+void cm_begin_shader_mode(Shader shader)
+{
+	glUseProgram(shader.id);
+}
+
+void cm_end_shader_mode()
+{
+	glUseProgram(0);
+}
+
+void enable_color_blend(void) { glEnable(GL_BLEND); }
+void disable_color_blend(void) { glDisable(GL_BLEND); }
+void enable_depth_test(void) { glEnable(GL_DEPTH_TEST); }
+void disable_depth_test(void) { glDisable(GL_DEPTH_TEST); }
+void enable_depth_mask(void) { glDepthMask(GL_TRUE); }
+void disable_depth_mask(void) { glDepthMask(GL_FALSE); }
+void enable_backface_culling(void) { glEnable(GL_CULL_FACE); }
+void disable_backface_culling(void) { glDisable(GL_CULL_FACE); }
+
+// Set color mask active for screen read/draw
+void color_mask(unsigned int mask) { glColorMask((mask & CM_RED) > 0, (mask & CM_GREEN) > 0,
+												 (mask & CM_BLUE) > 0, (mask & CM_ALPHA) > 0); }
+
+void set_cull_face(int mode)
+{
+	switch (mode)
+	{
+		case CM_CULL_FACE_BACK: glCullFace(GL_BACK); break;
+		case CM_CULL_FACE_FRONT: glCullFace(GL_FRONT); break;
+		default: break;
+	}
+}
+
+void enable_scissor_test(void) { glEnable(GL_SCISSOR_TEST); }
+void disable_scissor_test(void) { glDisable(GL_SCISSOR_TEST); }
+void scissor(int x, int y, int width, int height) { glScissor(x, y, width, height); }
+
+// Enable wire mode
+void enable_wire_mode(void)
+{
+	// NOTE: glPolygonMode() not available on OpenGL ES
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+}
+
+void enable_point_mode(void)
+{
+	// NOTE: glPolygonMode() not available on OpenGL ES
+    glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+    glEnable(GL_PROGRAM_POINT_SIZE);
+}
+// Disable wire mode
+void disable_wire_mode(void)
+{
+	// NOTE: glPolygonMode() not available on OpenGL ES
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
+// Set the line drawing width
+void set_line_width(float width) { glLineWidth(width); }
+
+// Get the line drawing width
+float get_line_width(void)
+{
+	float width = 0;
+	glGetFloatv(GL_LINE_WIDTH, &width);
+	return width;
+}
+
+// Enable line aliasing
+void enable_smooth_lines(void) { glEnable(GL_LINE_SMOOTH); }
+// Disable line aliasing
+void disable_smooth_lines(void) { glDisable(GL_LINE_SMOOTH); }

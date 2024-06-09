@@ -14,9 +14,10 @@
 #define MAX_KEY_PRESSED_QUEUE          16       // Maximum number of keys in the key input queue
 #define MAX_CHAR_PRESSED_QUEUE         16       // Maximum number of characters in the char input queue
 
-#define APPLICATION_EXIT_KEY 256
-#define MAX_PATH_SIZE 256
-#define MAX_NUM_APPLICATION_ICONS 8
-#define MAX_SHADER_LOCATIONS 32
+#define APPLICATION_EXIT_KEY         256
+#define MAX_PATH_SIZE                256
+#define MAX_NUM_APPLICATION_ICONS      8
+#define MAX_SHADER_LOCATIONS          32
+#define MAX_MESH_VERTEX_BUFFERS        7
 
 #endif //CONFIG_H

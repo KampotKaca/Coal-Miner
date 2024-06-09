@@ -1,6 +1,7 @@
 #include "window.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include "rendering.h"
 
 Window WINDOW;
 Input INPUT;
@@ -43,7 +44,7 @@ void create_window(unsigned int width, unsigned int height,
 	WINDOW.display.width = width;
 	WINDOW.display.height = height;
 	WINDOW.eventWaiting = false;
-	WINDOW.screenScale = matrix_identity();
+	WINDOW.screenScale = m4x4_identity();
 	if ((title != NULL) && (title[0] != 0)) WINDOW.title = title;
 	else WINDOW.title = "Coal Miner";
 
@@ -88,6 +89,8 @@ void create_window(unsigned int width, unsigned int height,
 	setup_viewport((int)WINDOW.currentFbo.width, (int)WINDOW.currentFbo.height);
 
 	WINDOW.shouldClose = false;
+	
+	setup_renderer(&WINDOW);
 }
 
 void set_window_flags(ConfigFlags hint)

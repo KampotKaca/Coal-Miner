@@ -14,6 +14,7 @@
 #include <stdarg.h>
 #include <dirent.h>
 
+#include <sys/stat.h>
 #include <sys/types.h>
 #include "config.h"
 #include "coal_math.h"
@@ -299,6 +300,76 @@ typedef struct Shader
 	unsigned int id;        // Shader program id
 	int *locs;              // Shader locations array (MAX_SHADER_LOCATIONS)
 } Shader;
+
+// Transform, vertex transformation data
+typedef struct Transform
+{
+	V3 translation;         // Translation
+	Quaternion rotation;    // Rotation
+	V3 scale;               // Scale
+} Transform;
+
+typedef struct Mesh
+{
+	unsigned int vertexCount;        // Number of vertices stored in arrays
+	unsigned int triangleCount;      // Number of triangles stored (indexed or not)
+	
+	// Vertex attributes data
+	float *vertices;        // Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
+	float *texcoords;       // Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
+	float *texcoords2;      // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
+	float *normals;         // Vertex normals (XYZ - 3 components per vertex) (shader-location = 2)
+	float *tangents;        // Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
+	unsigned char *colors;      // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
+	unsigned short *indices;    // Vertex indices (in case vertex data comes indexed)
+	
+	// Animation vertex data
+	float *animVertices;    // Animated vertex positions (after bones transformations)
+	float *animNormals;     // Animated normals (after bones transformations)
+	unsigned char *boneIds; // Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning)
+	float *boneWeights;     // Vertex bone weight, up to 4 bones influence by vertex (skinning)
+} Mesh;
+
+// Bone, skeletal animation bone
+typedef struct BoneInfo
+{
+	char name[32];          // Bone name
+	int parent;             // Bone parent
+} BoneInfo;
+
+// Model, meshes, materials and animation data
+typedef struct Model
+{
+	M4x4 transform;       // Local transform matrix
+	
+	unsigned int meshCount;          // Number of meshes
+	Mesh *meshes;           // Meshes array
+	
+	// Animation data
+	unsigned int boneCount;          // Number of bones
+	BoneInfo *bones;        // Bones information (skeleton)
+	Transform *bindPose;    // Bones base transformation (pose)
+} Model;
+
+// Camera, defines position/orientation in 3d space
+typedef struct Camera3D
+{
+	V3 position;       // Camera position
+	V3 target;         // Camera target it looks-at
+	V3 up;             // Camera up vector (rotation over its axis)
+	float fov;         // Camera field-of-view aperture in Y (degrees) in perspective, used as near plane width in orthographic
+	int projection;    // Camera projection: CAMERA_PERSPECTIVE or CAMERA_ORTHOGRAPHIC
+	float nearPlane;
+	float farPlane;
+} Camera3D;
+
+// Camera projection
+typedef enum CameraProjection
+{
+	CAMERA_PERSPECTIVE = 0,         // Perspective projection
+	CAMERA_ORTHOGRAPHIC             // Orthographic projection
+} CameraProjection;
+
 //endregion
 
 extern Image cm_load_image(const char* filePath);
@@ -311,6 +382,12 @@ extern Texture cm_load_texture_from_image(Image image);
 extern Shader cm_load_shader(const char *vsPath, const char *fsPath);
 extern Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode);
 extern void cm_unload_shader(Shader shader);
+
+extern void cm_begin_shader_mode(Shader shader);
+extern void cm_end_shader_mode();
+
+extern void cm_begin_mode_3d(Camera3D camera);
+extern void cm_end_mode_3d();
 
 extern const char *cm_get_file_extension(const char *filePath);
 char *cm_load_file_text(const char *filePath);
