@@ -190,7 +190,6 @@ unsigned char* load_file_data(const char* filePath, int* dataSize)
                         *dataSize = (int)count;
 
                         if ((*dataSize) != size) printf("FILEIO: [%s] File partially loaded (%i bytes out of %i)", filePath, *dataSize, (int)count);
-                        else printf("FILEIO: [%s] File loaded successfully", filePath);
                     }
                 }
                 else printf("FILEIO: [%s] Failed to allocated memory for file reading", filePath);
@@ -349,8 +348,7 @@ Image load_image_from_memory(const char *fileType, const unsigned char *fileData
 #endif
 	else printf("IMAGE: Data format not supported");
 	
-	if (image.data != NULL) printf("IMAGE: Data loaded successfully (%ix%i | %s | %i mipmaps)", image.width, image.height, get_pixel_format_name(image.format), image.mipmaps);
-	else printf("IMAGE: Failed to load image data");
+	if (image.data == NULL) printf("IMAGE: Failed to load image data");
 	
 	return image;
 }

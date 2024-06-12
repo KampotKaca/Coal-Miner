@@ -1,5 +1,7 @@
 #version 430
 
+in vec4 out_color;
+
 // Output fragment color
 out vec4 finalColor;
 
@@ -7,6 +9,6 @@ out vec4 finalColor;
 
 void main()
 {
-    finalColor = vec4(1, 1, 1, 1);
+    finalColor = out_color;
 }
 

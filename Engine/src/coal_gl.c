@@ -336,16 +336,6 @@ unsigned int compile_shader(const char *shaderCode, int type)
             CM_FREE(log);
         }
     }
-    else
-    {
-        switch (type)
-        {
-            case GL_VERTEX_SHADER: printf("SHADER: [ID %i] Vertex shader compiled successfully", shader); break;
-            case GL_FRAGMENT_SHADER: printf("SHADER: [ID %i] Fragment shader compiled successfully", shader); break;
-            case GL_COMPUTE_SHADER: printf("SHADER: [ID %i] Compute shader compiled successfully", shader); break;
-            default: break;
-        }
-    }
 
 	return shader;
 }
@@ -385,7 +375,6 @@ unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId)
 
         program = 0;
     }
-    else printf("SHADER: [ID %i] Program shader loaded successfully", program);
 	return program;
 }
 
@@ -437,31 +426,34 @@ void unload_ubos()
 	uboCount = 0;
 }
 
-Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo* vbos, unsigned int vboCount)
+Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo)
 {
 	Vao vao = { 0 };
+	vao.vbo = (Vbo){ 0 };
 	vao.attributeCount = attributeCount;
 	vao.attributes = CM_CALLOC(attributeCount, sizeof(VaoAttribute));
-	vao.vbos = CM_CALLOC(vboCount, sizeof(Vbo));
-	vao.vboCount = vboCount;
+	vao.stride = 0;
 	memcpy(vao.attributes, attributes, attributeCount * sizeof(VaoAttribute));
 	glGenVertexArrays(1, &vao.id);
 	glBindVertexArray(vao.id);
 
-	for (int i = 0; i < vao.vboCount; ++i)
-		vao.vbos[i] = cm_load_vbo(vbos[i].dataSize, vbos[i].data, vbos[i].isStatic);
+	vao.vbo = cm_load_vbo(vbo.dataSize, vbo.data, vbo.isStatic, vbo.ebo);
+
+	for (int i = 0; i < vao.attributeCount; ++i) vao.stride += vao.attributes[i].stride;
 
 	unsigned int offset = 0;
 	for (int i = 0; i < vao.attributeCount; ++i)
 	{
-		glVertexAttribPointer(i, (int)vao.attributes[i].size,
-							  vao.attributes[i].type,
-							  vao.attributes[i].normalized,
-							  (int)vao.attributes[i].stride, &offset);
-		offset += vao.attributes[i].stride;
+		VaoAttribute attrib = vao.attributes[i];
+		glVertexAttribPointer(i, (int)attrib.size,
+							  attrib.type,
+							  attrib.normalized,
+							  (int)vao.stride, (void*)offset);
+		offset += attrib.stride;
 		glEnableVertexAttribArray(i);
 	}
 
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
 	return vao;
@@ -469,16 +461,15 @@ Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo* vbos
 
 void cm_unload_vao(Vao vao)
 {
-	for (int i = 0; i < vao.vboCount; ++i)
-		cm_unload_vbo(vao.vbos[i]);
+	cm_unload_vbo(vao.vbo);
 	glDeleteVertexArrays(1, &vao.id);
 	CM_FREE(vao.attributes);
-	CM_FREE(vao.vbos);
 }
 
-Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic)
+Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic, Ebo ebo)
 {
 	Vbo vbo = { 0 };
+	vbo.ebo = (Ebo){ 0 };
 	vbo.dataSize = dataSize;
 	vbo.data = data;
 	vbo.isStatic = isStatic;
@@ -488,18 +479,45 @@ Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic)
 	if(vbo.isStatic) glBufferData(GL_ARRAY_BUFFER, vbo.dataSize, vbo.data, GL_STATIC_DRAW);
 	else glBufferData(GL_ARRAY_BUFFER, vbo.dataSize, vbo.data, GL_DYNAMIC_DRAW);
 
+	vbo.ebo = cm_load_ebo(ebo.dataSize, ebo.data, ebo.isStatic, ebo.type, ebo.indexCount);
+
 	return vbo;
 }
 
 void cm_unload_vbo(Vbo vbo)
 {
+	cm_unload_ebo(vbo.ebo);
 	glDeleteBuffers(1, &vbo.id);
+}
+
+Ebo cm_load_ebo(unsigned int dataSize, void* data, bool isStatic,
+                unsigned int type, unsigned int indexCount)
+{
+	Ebo ebo = { 0 };
+	ebo.dataSize = dataSize;
+	ebo.data = data;
+	ebo.isStatic = isStatic;
+	ebo.type = type;
+	ebo.indexCount = indexCount;
+	glGenBuffers(1, &ebo.id);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo.id);
+
+	if(ebo.isStatic) glBufferData(GL_ELEMENT_ARRAY_BUFFER, ebo.dataSize, ebo.data, GL_STATIC_DRAW);
+	else glBufferData(GL_ELEMENT_ARRAY_BUFFER, ebo.dataSize, ebo.data, GL_DYNAMIC_DRAW);
+
+	return ebo;
+}
+
+void cm_unload_ebo(Ebo ebo)
+{
+	glDeleteBuffers(1, &ebo.id);
 }
 
 extern void cm_draw_vao(Vao vao)
 {
 	glBindVertexArray(vao.id);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	Ebo ebo = vao.vbo.ebo;
+	glDrawElements(GL_TRIANGLES, (int)ebo.indexCount, ebo.type, 0);
 }
 
 void cm_begin_shader_mode(Shader shader)
@@ -510,6 +528,12 @@ void cm_begin_shader_mode(Shader shader)
 void cm_end_shader_mode()
 {
 	glUseProgram(0);
+}
+
+void cm_set_shader_uniform_m4x4(Shader shader, const char* name, M4x4 m)
+{
+	int location = glGetUniformLocation(shader.id, name);
+	glUniformMatrix4fv(location, 1, GL_FALSE, &m.m0);
 }
 
 void enable_color_blend(void) { glEnable(GL_BLEND); }

@@ -41,7 +41,6 @@ char *cm_load_file_text(const char *filePath)
                     // Zero-terminate the string
                     text[count] = '\0';
 
-                    printf("FILEIO: [%s] Text file loaded successfully", filePath);
                 }
                 else printf("FILEIO: [%s] Failed to allocated memory for file reading", filePath);
             }

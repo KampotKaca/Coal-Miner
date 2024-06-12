@@ -30,7 +30,6 @@ int FillWithAppIcons(const char* filePath, Image* storeLocation)
 		snprintf(newPath, MAX_PATH_SIZE, "%s/%s", filePath, entry->d_name);
 
 		storeLocation[imageId] = cm_load_image(newPath);
-		printf("%s\n", newPath);
 		imageId++;
 	}
 

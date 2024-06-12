@@ -7,9 +7,16 @@ Vao vao;
 
 float vertices[] =
 {
-	0.5f,  0.5f, 0.0f,  // top right
-	0.5f, -0.5f, 0.0f,  // bottom right
-	-0.5f, -0.5f, 0.0f,  // bottom left
+	-0.5f, -0.5f, 0.0f, 0.0f, 0.0f,  // bottom left
+	-0.5f, 0.5f, 0.0f, 1.0f, 1.0f, // top left
+	0.5f,  0.5f, 0.0f, 0.0f, 1.0f, // top right
+	0.5f, -0.5f, 0.0f, 1.0f, 0.0f, // bottom right
+};
+
+unsigned int indices[] =
+{
+	0, 1, 2,
+	0, 2, 3,
 };
 
 void game_awake()
@@ -21,6 +28,7 @@ void game_awake()
 	strcat_s(fsPath, MAX_PATH_SIZE, "shaders/default.frag");
 
 	shader = cm_load_shader(vsPath, fsPath);
+
 	camera = (Camera3D){ 0 };
 	camera.nearPlane = .01f;
 	camera.farPlane = 100;
@@ -32,14 +40,25 @@ void game_awake()
 
 	VaoAttribute attributes[] =
 	{
-		{ 3, CM_FLOAT, false, 3 * sizeof(float) }
+		{ 3, CM_FLOAT, false, 3 * sizeof(float) },
+		{ 2, CM_FLOAT, false, 2 * sizeof(float) }
 	};
 
-	Vbo vbos[] =
-	{
-		{ 0, 9 * sizeof(float), true, vertices }
-	};
-	vao = cm_load_vao(attributes, 1, vbos, 1);
+	Vbo vbo = { 0 };
+	vbo.id = 0;
+	vbo.isStatic = false;
+	vbo.data = vertices;
+	vbo.dataSize = sizeof(vertices);
+	Ebo ebo = {0};
+	ebo.id = 0;
+	ebo.isStatic = false;
+	ebo.dataSize = sizeof(indices);
+	ebo.data = indices;
+	ebo.type = CM_UINT;
+	ebo.indexCount = 6;
+	vbo.ebo = ebo;
+
+	vao = cm_load_vao(attributes, 2, vbo);
 }
 
 void game_update()
@@ -49,13 +68,13 @@ void game_update()
 
 void game_render()
 {
-//	cm_begin_mode_3d(camera);
 	cm_begin_shader_mode(shader);
+	cm_begin_mode_3d(camera, shader);
 
 	cm_draw_vao(vao);
 
+	cm_end_mode_3d();
 	cm_end_shader_mode();
-//	cm_end_mode_3d();
 }
 
 void game_frame_end()

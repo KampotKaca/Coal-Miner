@@ -12,7 +12,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>
-#include <dirent.h>
+#include <extras/dirent.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -363,12 +363,23 @@ typedef struct Camera3D
 	float farPlane;
 } Camera3D;
 
+typedef struct Ebo
+{
+	unsigned int id;
+	unsigned int dataSize;
+	bool isStatic;
+	void* data;
+	unsigned int type;
+	unsigned int indexCount;
+}Ebo;
+
 typedef struct Vbo
 {
 	unsigned int id;
 	unsigned int dataSize;
 	bool isStatic;
 	void* data;
+	Ebo ebo;
 }Vbo;
 
 typedef struct VaoAttribute
@@ -384,8 +395,8 @@ typedef struct Vao
 	unsigned int id;
 	VaoAttribute* attributes;
 	unsigned int attributeCount;
-	Vbo* vbos;
-	unsigned int vboCount;
+	Vbo vbo;
+	unsigned int stride;
 }Vao;
 
 // Camera projection
@@ -423,14 +434,20 @@ extern void cm_unload_shader(Shader shader);
 extern void cm_begin_shader_mode(Shader shader);
 extern void cm_end_shader_mode();
 
-extern void cm_begin_mode_3d(Camera3D camera);
+extern void cm_set_shader_uniform_m4x4(Shader shader, const char* name, M4x4 m);
+
+extern void cm_begin_mode_3d(Camera3D camera, Shader shader);
 extern void cm_end_mode_3d();
 
 extern bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data);
-extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo* vbos, unsigned int vboCount);
+extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo);
 extern void cm_unload_vao(Vao vao);
-extern Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic);
+
+extern Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic, Ebo ebo);
 extern void cm_unload_vbo(Vbo vbo);
+extern Ebo cm_load_ebo(unsigned int dataSize, void* data, bool isStatic,
+					   unsigned int type, unsigned int indexCount);
+extern void cm_unload_ebo(Ebo ebo);
 
 extern void cm_draw_vao(Vao vao);
 

@@ -17,7 +17,8 @@ struct CameraUbo cameraUbo;
 void load_renderer(Window* wPtr)
 {
 	windowPtr = wPtr;
-	cm_load_ubo(32, 3 * sizeof(M4x4) + 2 * sizeof(V3), &cameraUbo);
+	disable_backface_culling();
+//	cm_load_ubo(32, 3 * sizeof(M4x4) + 2 * sizeof(V3), &cameraUbo);
 }
 
 void unload_renderer()
@@ -25,7 +26,7 @@ void unload_renderer()
 	unload_ubos();
 }
 
-void cm_begin_mode_3d(Camera3D camera)
+void cm_begin_mode_3d(Camera3D camera, Shader shader)
 {
 	float aspect = (float)windowPtr->currentFbo.width / (float)windowPtr->currentFbo.height;
 	
@@ -47,13 +48,23 @@ void cm_begin_mode_3d(Camera3D camera)
 		cameraUbo.projection = m4x4_orthographic(-right, right, -top, top, camera.nearPlane, camera.farPlane);
 	}
 
+//	printf("x: %f, y: %f, z: %f", camera.up.x, camera.up.y, camera.up.z);
 	cameraUbo.view = m4x4_look_at(camera.position, camera.target, camera.up);
+	cameraUbo.view = (M4x4){
+		cameraUbo.view.m0, cameraUbo.view.m4, cameraUbo.view.m8, cameraUbo.view.m12,
+		cameraUbo.view.m1, cameraUbo.view.m5, cameraUbo.view.m9, cameraUbo.view.m13,
+		cameraUbo.view.m2, cameraUbo.view.m6, cameraUbo.view.m10, cameraUbo.view.m14,
+		cameraUbo.view.m3, cameraUbo.view.m7, cameraUbo.view.m11, cameraUbo.view.m15,
+	};
+
 	cameraUbo.viewProjection = m4x4_mult(cameraUbo.projection, cameraUbo.view);
 	cameraUbo.position = camera.position;
 	cameraUbo.direction = v3_norm(v3_sub(camera.target, camera.position));
-	enable_depth_test();
+//	cm_set_shader_uniform_m4x4(shader, "cameraViewProjection", cameraUbo.viewProjection);
 
-	upload_ubos();
+//	enable_depth_test();
+
+//	upload_ubos();
 }
 
 void cm_end_mode_3d()
