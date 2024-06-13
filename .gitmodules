@@ -2,3 +2,6 @@
 	path = Engine/external/glfw
 	url = https://github.com/glfw/glfw.git
 	branch = master
+[submodule "Engine/external/cglm"]
+	path = Engine/external/cglm
+	url = https://github.com/recp/cglm.git

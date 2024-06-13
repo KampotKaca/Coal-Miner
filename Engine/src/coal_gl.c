@@ -530,10 +530,10 @@ void cm_end_shader_mode()
 	glUseProgram(0);
 }
 
-void cm_set_shader_uniform_m4x4(Shader shader, const char* name, M4x4 m)
+void cm_set_shader_uniform_m4x4(Shader shader, const char* name, float* m)
 {
 	int location = glGetUniformLocation(shader.id, name);
-	glUniformMatrix4fv(location, 1, GL_FALSE, &m.m0);
+	glUniformMatrix4fv(location, 1, GL_FALSE, m);
 }
 
 void enable_color_blend(void) { glEnable(GL_BLEND); }

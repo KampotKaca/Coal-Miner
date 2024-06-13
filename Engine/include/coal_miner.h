@@ -17,7 +17,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "config.h"
-#include "coal_math.h"
+#include <cglm/cglm.h>
+#include <cglm/call.h>
+#include <cglm/quat.h>
 
 //region Inputs
 // Keyboard keys (US keyboard layout)
@@ -262,8 +264,8 @@ typedef enum {
 // Rectangle, 4 components
 typedef struct Rect
 {
-	V2 center;
-	V2 size;
+	vec2 center;
+	vec2 size;
 } Rect;
 
 // Image, pixel data stored in CPU memory (RAM)
@@ -304,9 +306,9 @@ typedef struct Shader
 // Transform, vertex transformation data
 typedef struct Transform
 {
-	V3 translation;         // Translation
-	Quaternion rotation;    // Rotation
-	V3 scale;               // Scale
+	vec3 translation;         // Translation
+	versor rotation;          // Rotation
+	vec3 scale;               // Scale
 } Transform;
 
 typedef struct Mesh
@@ -340,7 +342,7 @@ typedef struct BoneInfo
 // Model, meshes, materials and animation data
 typedef struct Model
 {
-	M4x4 transform;       // Local transform matrix
+	mat4 transform;       // Local transform matrix
 	
 	unsigned int meshCount;          // Number of meshes
 	Mesh *meshes;           // Meshes array
@@ -354,9 +356,9 @@ typedef struct Model
 // Camera, defines position/orientation in 3d space
 typedef struct Camera3D
 {
-	V3 position;       // Camera position
-	V3 target;         // Camera target it looks-at
-	V3 up;             // Camera up vector (rotation over its axis)
+	vec3 position;       // Camera position
+	vec3 target;         // Camera target it looks-at
+	vec3 up;             // Camera up vector (rotation over its axis)
 	float fov;         // Camera field-of-view aperture in Y (degrees) in perspective, used as near plane width in orthographic
 	int projection;    // Camera projection: CAMERA_PERSPECTIVE or CAMERA_ORTHOGRAPHIC
 	float nearPlane;
@@ -434,7 +436,7 @@ extern void cm_unload_shader(Shader shader);
 extern void cm_begin_shader_mode(Shader shader);
 extern void cm_end_shader_mode();
 
-extern void cm_set_shader_uniform_m4x4(Shader shader, const char* name, M4x4 m);
+extern void cm_set_shader_uniform_m4x4(Shader shader, const char* name, float* m);
 
 extern void cm_begin_mode_3d(Camera3D camera, Shader shader);
 extern void cm_end_mode_3d();

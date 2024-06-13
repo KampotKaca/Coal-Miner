@@ -46,10 +46,11 @@ static void WindowSizeCallback(GLFWwindow *window, int width, int height)
 #else
 	if ((WINDOW_ptr->flags & FLAG_WINDOW_HIGHDPI) > 0)
 	{
-		V2 windowScaleDPI = get_window_scale_dpi();
+		vec2 windowScaleDPI;
+		get_window_scale_dpi(windowScaleDPI);
 
-		WINDOW_ptr->screen.width = (unsigned int)((float)width / windowScaleDPI.x);
-		WINDOW_ptr->screen.height = (unsigned int)((float)height / windowScaleDPI.y);
+		WINDOW_ptr->screen.width = (unsigned int)((float)width / windowScaleDPI[0]);
+		WINDOW_ptr->screen.height = (unsigned int)((float)height / windowScaleDPI[1]);
 	}
 	else
 	{
@@ -139,15 +140,15 @@ static void MouseButtonCallback(GLFWwindow *window, int button, int action, int 
 // GLFW3 Cursor Position Callback, runs on mouse move
 static void MouseCursorPosCallback(GLFWwindow *window, double x, double y)
 {
-	INPUT_ptr->Mouse.currentPosition.x = (float)x;
-	INPUT_ptr->Mouse.currentPosition.y = (float)y;
-	INPUT_ptr->Touch.position[0] = INPUT_ptr->Mouse.currentPosition;
+	INPUT_ptr->Mouse.currentPosition[0] = (float)x;
+	INPUT_ptr->Mouse.currentPosition[1] = (float)y;
+	glm_vec2(INPUT_ptr->Mouse.currentPosition, INPUT_ptr->Touch.position[0]);
 }
 
 // GLFW3 Scrolling Callback, runs on mouse wheel
 static void MouseScrollCallback(GLFWwindow *window, double xoffset, double yoffset)
 {
-	INPUT_ptr->Mouse.currentWheelMove = (V2){(float)xoffset, (float)yoffset };
+	glm_vec2((vec2){(float)xoffset, (float)yoffset }, INPUT_ptr->Mouse.currentWheelMove);
 }
 
 // GLFW3 CursorEnter Callback, when cursor enters the window
@@ -201,8 +202,8 @@ void setup_framebuffer(Window* window)
 
 		// Screen scaling required
 		float scaleRatio = (float)window->render.width/(float)window->screen.width;
-		window->screenScale = m4x4_scale(scaleRatio, scaleRatio, 1.0f);
-
+		glm_mat4_identity(window->screenScale);
+		glm_scale(window->screenScale, (vec3){scaleRatio, scaleRatio, 1.0f});
 		// NOTE: We render to full display resolution!
 		// We just need to calculate above parameters for downscale matrix and offsets
 		window->render.width = window->display.width;
@@ -1061,23 +1062,23 @@ void *get_window_handle(void)
 }
 
 // Get window position XY on monitor
-V2 get_window_position(void)
+void get_window_position(float* dest)
 {
 	int x = 0;
 	int y = 0;
 
 	glfwGetWindowPos(WINDOW_ptr->platformHandle, &x, &y);
-
-	return (V2){ (float)x, (float)y };
+	glm_vec2((vec2){ (float)x, (float)y }, dest);
 }
 
 // Get window scale DPI factor for current monitor
-V2 get_window_scale_dpi(void)
+void get_window_scale_dpi(float* dest)
 {
 	float xdpi = 1.0f;
 	float ydpi = 1.0f;
-	V2 scale = { 1.0f, 1.0f };
-	V2 windowPos = get_window_position();
+	vec2 scale = { 1.0f, 1.0f };
+	vec2 windowPos;
+	get_window_position(windowPos);
 
 	int monitorCount = 0;
 	GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
@@ -1090,16 +1091,16 @@ V2 get_window_scale_dpi(void)
 		int xpos, ypos, width, height;
 		glfwGetMonitorWorkarea(monitors[i], &xpos, &ypos, &width, &height);
 
-		if ((windowPos.x >= (float)xpos) && (windowPos.x < (float)(xpos + width)) &&
-		    (windowPos.y >= (float)ypos) && (windowPos.y < (float)(ypos + height)))
+		if ((windowPos[0] >= (float)xpos) && (windowPos[0] < (float)(xpos + width)) &&
+		    (windowPos[1] >= (float)ypos) && (windowPos[1] < (float)(ypos + height)))
 		{
-			scale.x = xdpi;
-			scale.y = ydpi;
+			scale[0] = xdpi;
+			scale[1] = ydpi;
 			break;
 		}
 	}
 
-	return scale;
+	glm_vec2(scale, dest);
 }
 
 // Set clipboard text content
@@ -1173,11 +1174,11 @@ int set_gamepad_mappings(const char *mappings)
 // Set mouse position XY
 void set_mouse_position(int x, int y)
 {
-	INPUT_ptr->Mouse.currentPosition = (V2){(float)x, (float)y };
-	INPUT_ptr->Mouse.previousPosition = INPUT_ptr->Mouse.currentPosition;
+	glm_vec2((vec2){(float)x, (float)y }, INPUT_ptr->Mouse.currentPosition);
+	glm_vec2(INPUT_ptr->Mouse.currentPosition, INPUT_ptr->Mouse.previousPosition);
 
 	// NOTE: emscripten not implemented
-	glfwSetCursorPos(WINDOW_ptr->platformHandle, INPUT_ptr->Mouse.currentPosition.x, INPUT_ptr->Mouse.currentPosition.y);
+	glfwSetCursorPos(WINDOW_ptr->platformHandle, INPUT_ptr->Mouse.currentPosition[0], INPUT_ptr->Mouse.currentPosition[1]);
 }
 
 // Set mouse cursor
@@ -1216,11 +1217,11 @@ void poll_input_events(void)
 	for (int i = 0; i < MAX_MOUSE_BUTTONS; i++) INPUT_ptr->Mouse.previousButtonState[i] = INPUT_ptr->Mouse.currentButtonState[i];
 
 	// Register previous mouse wheel state
-	INPUT_ptr->Mouse.previousWheelMove = INPUT_ptr->Mouse.currentWheelMove;
-	INPUT_ptr->Mouse.currentWheelMove = (V2){0.0f, 0.0f };
+	glm_vec2(INPUT_ptr->Mouse.currentWheelMove, INPUT_ptr->Mouse.previousWheelMove);
+	glm_vec2((vec2){ 0.0f, 0.0f }, INPUT_ptr->Mouse.currentWheelMove);
 
 	// Register previous mouse position
-	INPUT_ptr->Mouse.previousPosition = INPUT_ptr->Mouse.currentPosition;
+	glm_vec2(INPUT_ptr->Mouse.currentWheelMove, INPUT_ptr->Mouse.previousWheelMove);
 
 	// Register previous touch states
 	for (int i = 0; i < MAX_TOUCH_POINTS; i++) INPUT_ptr->Touch.previousTouchState[i] = INPUT_ptr->Touch.currentTouchState[i];
@@ -1233,7 +1234,7 @@ void poll_input_events(void)
 	// TODO: GLFW does not support multi-touch input just yet
 	// https://www.codeproject.com/Articles/668404/Programming-for-Multi-Touch
 	// https://docs.microsoft.com/en-us/windows/win32/wintouch/getting-started-with-multi-touch-messages
-	INPUT_ptr->Touch.position[0] = INPUT_ptr->Mouse.currentPosition;
+	glm_vec2(INPUT_ptr->Mouse.currentPosition, INPUT_ptr->Touch.position[0]);
 
 	// Check if gamepads are ready
 	// NOTE: We do it here in case of disconnection
@@ -1431,7 +1432,7 @@ int get_current_monitor(void)
 }
 
 // Get selected monitor position
-V2 get_monitor_position(int monitor)
+void get_monitor_position(int monitor, float* dest)
 {
 	int monitorCount = 0;
 	GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
@@ -1440,11 +1441,11 @@ V2 get_monitor_position(int monitor)
 	{
 		int x, y;
 		glfwGetMonitorPos(monitors[monitor], &x, &y);
-
-		return (V2){ (float)x, (float)y };
+		glm_vec2((vec2){ (float)x, (float)y }, dest);
+		return;
 	}
 	else printf("GLFW: Failed to find selected monitor");
-	return (V2){ 0, 0 };
+	glm_vec2((vec2){ 0, 0 }, dest);
 }
 
 // Get selected monitor width (currently used by monitor)

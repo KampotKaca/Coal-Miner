@@ -2,7 +2,6 @@
 #define COAL_MINER_INTERNAL_H
 
 #include "coal_miner.h"
-#include "coal_math.h"
 
 //region Necessary Structures
 
@@ -56,26 +55,26 @@ extern void cm_toggle_borderless_windowed();
 extern void cm_restore_window();
 
 extern void cm_set_window_title(const char *title);
-extern void cm_set_window_position(V2i position);
+extern void cm_set_window_position(const ivec2 position);
 extern void cm_set_window_monitor(int monitor);
-extern void cm_set_window_min_size(V2i size);
-extern void cm_set_window_max_size(V2i size);
-extern void cm_set_window_size(V2i size);
+extern void cm_set_window_min_size(const ivec2 size);
+extern void cm_set_window_max_size(const ivec2 size);
+extern void cm_set_window_size(const ivec2 size);
 extern void cm_set_window_opacity(float opacity);
 extern void cm_set_window_focused(void);
 
 extern void cm_set_window_icon(Image image);
 extern void cm_set_window_icons(Image* images, int count);
 
-extern V2 cm_get_window_position(void);
-extern V2 cm_get_window_scale_dpi(void);
+extern void cm_get_window_position(float* dest);
+extern void cm_get_window_scale_dpi(float* dest);
 extern void cm_set_clipboard_text(const char *text);
 extern const char *cm_get_clipboard_text(void);
 extern void cm_show_cursor(void);
 extern void cm_hide_cursor(void);
 extern void cm_enable_cursor(void);
 extern void cm_disable_cursor(void);
-extern void cm_set_mouse_position(V2i position);
+extern void cm_set_mouse_position(const ivec2 position);
 extern void cm_set_mouse_cursor(int cursor);
 
 #endif //COAL_MINER_INTERNAL_H

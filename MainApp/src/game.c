@@ -7,16 +7,31 @@ Vao vao;
 
 float vertices[] =
 {
-	-0.5f, -0.5f, 0.0f, 0.0f, 0.0f,  // bottom left
-	-0.5f, 0.5f, 0.0f, 1.0f, 1.0f, // top left
-	0.5f,  0.5f, 0.0f, 0.0f, 1.0f, // top right
-	0.5f, -0.5f, 0.0f, 1.0f, 0.0f, // bottom right
+	-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,  // bottom left
+	0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 0.0f, // top left
+	0.5f, 0.5f, -0.5f,  0.0f, 1.0f, 0.0f, // top right
+	-0.5f, 0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // bottom right
+
+	-0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,  // bottom left
+	0.5f, -0.5f, 0.5f,  1.0f, 1.0f, 1.0f, // top left
+	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 1.0f, // top right
+	-0.5f, 0.5f, 0.5f,  1.0f, 0.0f, 1.0f, // bottom right
 };
 
-unsigned int indices[] =
+unsigned short indices[] =
 {
-	0, 1, 2,
+	0, 1, 2, // Front face
 	0, 2, 3,
+	1, 5, 6, // Right face
+	1, 6, 2,
+	5, 4, 7, // Back face
+	5, 7, 6,
+	4, 0, 3, // Left face
+	4, 3, 7,
+	3, 2, 6, // Top face
+	3, 6, 7,
+	4, 5, 1, // Bottom face
+	4, 1, 0
 };
 
 void game_awake()
@@ -32,16 +47,17 @@ void game_awake()
 	camera = (Camera3D){ 0 };
 	camera.nearPlane = .01f;
 	camera.farPlane = 100;
-	camera.target = v3_zero();
-	camera.position = (V3) { 0, 5, -5 };
 	camera.projection = CAMERA_PERSPECTIVE;
-	camera.up = (V3){ 0, 1, 0 };
 	camera.fov = 45;
+
+	glm_vec3((vec3){ 0, 0, 0 }, camera.target);
+	glm_vec3((vec3){ 0, 0, 3 }, camera.position);
+	glm_vec3((vec3){ 0, 1, 0 }, camera.up);
 
 	VaoAttribute attributes[] =
 	{
 		{ 3, CM_FLOAT, false, 3 * sizeof(float) },
-		{ 2, CM_FLOAT, false, 2 * sizeof(float) }
+		{ 3, CM_FLOAT, false, 3 * sizeof(float) }
 	};
 
 	Vbo vbo = { 0 };
@@ -54,12 +70,14 @@ void game_awake()
 	ebo.isStatic = false;
 	ebo.dataSize = sizeof(indices);
 	ebo.data = indices;
-	ebo.type = CM_UINT;
-	ebo.indexCount = 6;
+	ebo.type = CM_USHORT;
+	ebo.indexCount = 36;
 	vbo.ebo = ebo;
 
 	vao = cm_load_vao(attributes, 2, vbo);
 }
+
+versor rotation = { 0 };
 
 void game_update()
 {
@@ -70,6 +88,11 @@ void game_render()
 {
 	cm_begin_shader_mode(shader);
 	cm_begin_mode_3d(camera, shader);
+	mat4 model = { 0 };
+	glm_translate(model, (vec3){ 0, 0, 0 });
+	glm_quat_rotate(model, rotation, model);
+	glm_scale(model, (vec3){1, 1, 1});
+	cm_set_shader_uniform_m4x4(shader, "model", model[0]);
 
 	cm_draw_vao(vao);
 

@@ -2,7 +2,7 @@
 
 // Input vertex attributes
 layout(location = 0) in vec3 vertexPosition;
-layout(location = 1) in vec2 uvPosition;
+layout(location = 1) in vec3 vertexColor;
 
 //layout(std140, binding = 32) uniform Camera
 //{
@@ -13,13 +13,14 @@ layout(location = 1) in vec2 uvPosition;
 //    vec3 cameraDirection;
 //};
 
-//uniform mat4 cameraViewProjection;
+uniform mat4 cameraViewProjection;
+uniform mat4 model;
 
 out vec4 out_color;
 
 void main()
 {
     // Calculate final vertex position
-    out_color = vec4(uvPosition, 0, 1);
-    gl_Position = vec4(vertexPosition, 1.0);
+    out_color = vec4(vertexColor, 1);
+    gl_Position = cameraViewProjection * model * vec4(vertexPosition, 1.0);
 }

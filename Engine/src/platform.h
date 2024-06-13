@@ -29,7 +29,7 @@ typedef struct Window
 	Point renderOffset;                 // Offset from render area (must be divided by 2)
 	Size screenMin;                     // Screen minimum width and height (for resizable window)
 	Size screenMax;                     // Screen maximum width and height (for resizable window)
-	M4x4 screenScale;                 // Matrix to scale screen (framebuffer rendering)
+	mat4 screenScale;                 // Matrix to scale screen (framebuffer rendering)
 
 	void* platformHandle;
 
@@ -55,10 +55,10 @@ typedef struct Input
 	} Keyboard;
 	struct Mouse
 	{
-		V2 offset;                 // Mouse offset
-		V2 scale;                  // Mouse scaling
-		V2 currentPosition;        // Mouse position on screen
-		V2 previousPosition;       // Previous mouse position
+		vec2 offset;                 // Mouse offset
+		vec2 scale;                  // Mouse scaling
+		vec2 currentPosition;        // Mouse position on screen
+		vec2 previousPosition;       // Previous mouse position
 
 		int cursor;                     // Tracks current mouse cursor
 		bool cursorHidden;              // Track if cursor is hidden
@@ -66,15 +66,15 @@ typedef struct Input
 
 		char currentButtonState[MAX_MOUSE_BUTTONS];     // Registers current mouse button state
 		char previousButtonState[MAX_MOUSE_BUTTONS];    // Registers previous mouse button state
-		V2 currentWheelMove;       // Registers current mouse wheel variation
-		V2 previousWheelMove;      // Registers previous mouse wheel variation
+		vec2 currentWheelMove;       // Registers current mouse wheel variation
+		vec2 previousWheelMove;      // Registers previous mouse wheel variation
 
 	} Mouse;
 	struct Touch
 	{
 		int pointCount;                             // Number of touch points active
 		int pointId[MAX_TOUCH_POINTS];              // Point identifiers
-		V2 position[MAX_TOUCH_POINTS];         // Touch position on screen
+		vec2 position[MAX_TOUCH_POINTS];         // Touch position on screen
 		char currentTouchState[MAX_TOUCH_POINTS];   // Registers current touch state
 		char previousTouchState[MAX_TOUCH_POINTS];  // Registers previous touch state
 
@@ -121,8 +121,8 @@ void set_window_icon(Image image);
 void set_window_icons(Image* images, int count);
 
 void *get_window_handle(void);
-V2 get_window_position(void);
-V2 get_window_scale_dpi(void);
+void get_window_position(float* dest);
+void get_window_scale_dpi(float* dest);
 void set_clipboard_text(const char *text);
 const char *get_clipboard_text(void);
 void show_cursor(void);
@@ -141,7 +141,7 @@ void poll_input_events(void);
 
 int get_monitor_count(void);
 int get_current_monitor(void);
-V2 get_monitor_position(int monitor);
+void get_monitor_position(int monitor, float* dest);
 int get_monitor_width(int monitor);
 int get_monitor_height(int monitor);
 int get_monitor_physical_width(int monitor);
