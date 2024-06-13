@@ -422,13 +422,16 @@ typedef enum VaoDataType
 
 //endregion
 
+//region Textures
 extern Image cm_load_image(const char* filePath);
 extern void cm_unload_image(Image image);
 extern void cm_unload_images(Image* image, int size);
-extern Image cm_load_image_raw(const char *filePath, int width, int height, int format, int headerSize);
-extern Image cm_load_image_svg(const char *fileNameOrString, int width, int height);
+
 extern Texture cm_load_texture(const char* filePath);
 extern Texture cm_load_texture_from_image(Image image);
+//endregion
+
+//region Shader
 extern Shader cm_load_shader(const char *vsPath, const char *fsPath);
 extern Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode);
 extern void cm_unload_shader(Shader shader);
@@ -437,10 +440,14 @@ extern void cm_begin_shader_mode(Shader shader);
 extern void cm_end_shader_mode();
 
 extern void cm_set_shader_uniform_m4x4(Shader shader, const char* name, float* m);
+//endregion
 
-extern void cm_begin_mode_3d(Camera3D camera, Shader shader);
+//region Camera
+extern void cm_begin_mode_3d(Camera3D camera);
 extern void cm_end_mode_3d();
+//endregion
 
+//region GL Buffers
 extern bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data);
 extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo);
 extern void cm_unload_vao(Vao vao);
@@ -452,9 +459,61 @@ extern Ebo cm_load_ebo(unsigned int dataSize, void* data, bool isStatic,
 extern void cm_unload_ebo(Ebo ebo);
 
 extern void cm_draw_vao(Vao vao);
+//endregion
 
+//region Input Functions
+
+//region Keys
+extern bool cm_is_key_pressed(int key);        // Check if a key has been pressed once
+extern bool cm_is_key_pressed_repeat(int key); // Check if a key has been pressed again (Only PLATFORM_DESKTOP)
+extern bool cm_is_key_down(int key);           // Check if a key is being pressed
+extern bool cm_is_key_released(int key);       // Check if a key has been released once
+extern bool cm_is_key_up(int key);             // Check if a key is NOT being pressed
+extern int cm_get_key_pressed(void);           // Get key pressed (keycode), call it multiple times for keys queued, returns 0 when the queue is empty
+extern int cm_get_char_pressed(void);          // Get char pressed (unicode), call it multiple times for chars queued, returns 0 when the queue is empty
+//endregion
+
+//region Gamepads
+extern bool cm_is_gamepad_available(int gamepad);                    // Check if a gamepad is available
+extern const char *cm_get_gamepad_name(int gamepad);                 // Get gamepad internal name id
+extern bool cm_is_gamepad_button_pressed(int gamepad, int button);   // Check if a gamepad button has been pressed once
+extern bool cm_is_gamepad_button_down(int gamepad, int button);      // Check if a gamepad button is being pressed
+extern bool cm_is_gamepad_button_released(int gamepad, int button);  // Check if a gamepad button has been released once
+extern bool cm_is_gamepad_button_up(int gamepad, int button);        // Check if a gamepad button is NOT being pressed
+extern int cm_get_gamepad_button_pressed(void);                      // Get the last gamepad button pressed
+extern int cm_get_gamepad_axis_count(int gamepad);                   // Get gamepad axis count for a gamepad
+extern float cm_get_gamepad_axis_movement(int gamepad, int axis);    // Get axis movement value for a gamepad axis
+//endregion
+
+//region Mouse
+extern bool cm_is_mouse_button_pressed(int button);          // Check if a mouse button has been pressed once
+extern bool cm_is_mouse_button_down(int button);             // Check if a mouse button is being pressed
+extern bool cm_is_mouse_button_released(int button);         // Check if a mouse button has been released once
+extern bool cm_is_mouse_button_up(int button);               // Check if a mouse button is NOT being pressed
+extern float cm_get_mouse_X(void);                             // Get mouse position X
+extern float cm_get_mouse_Y(void);                             // Get mouse position Y
+extern void cm_get_mouse_position(float* position);          // Get mouse position XY
+extern void cm_get_mouse_delta(float* delta);                // Get mouse delta between frames
+extern void cm_set_mouse_offset(float offsetX, float offsetY);   // Set mouse offset
+extern void cm_set_mouse_scale(float scaleX, float scaleY);  // Set mouse scaling
+extern float cm_get_mouse_wheel_move(void);                  // Get mouse wheel movement for X or Y, whichever is larger
+extern void cm_get_mouse_wheel_move_V(float* v);             // Get mouse wheel movement for both X and Y
+//endregion
+
+//region Touch
+extern int cm_get_touch_X(void);                                 // Get touch position X for touch point 0 (relative to screen size)
+extern int cm_get_touch_Y(void);                                 // Get touch position Y for touch point 0 (relative to screen size)
+extern void cm_get_touch_position(int index, float* position);   // Get touch position XY for a touch point index (relative to screen size)
+extern int cm_get_touch_point_id(int index);                     // Get touch point identifier for given index
+extern int cm_get_touch_point_count(void);                       // Get number of touch points
+//endregion
+
+//endregion
+
+//region Helper Functions
 extern const char *cm_get_file_extension(const char *filePath);
 char *cm_load_file_text(const char *filePath);
 void cm_unload_file_text(char *text);
+//endregion
 
 #endif //COAL_MINER_H

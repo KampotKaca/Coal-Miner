@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "rendering.h"
+#include "input.h"
 
 Window WINDOW;
 Input INPUT;
@@ -90,6 +91,7 @@ void create_window(unsigned int width, unsigned int height,
 	WINDOW.shouldClose = false;
 
 	load_renderer(&WINDOW);
+	load_input(&INPUT);
 }
 
 void set_window_flags(ConfigFlags hint)

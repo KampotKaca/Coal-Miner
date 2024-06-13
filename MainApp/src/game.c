@@ -20,18 +20,18 @@ float vertices[] =
 
 unsigned short indices[] =
 {
-	0, 1, 2, // Front face
-	0, 2, 3,
-	1, 5, 6, // Right face
-	1, 6, 2,
-	5, 4, 7, // Back face
-	5, 7, 6,
-	4, 0, 3, // Left face
-	4, 3, 7,
-	3, 2, 6, // Top face
-	3, 6, 7,
-	4, 5, 1, // Bottom face
-	4, 1, 0
+	0, 2, 1, // Front face
+	0, 3, 2,
+	1, 6, 5, // Right face
+	1, 2, 6,
+	5, 7, 4, // Back face
+	5, 6, 7,
+	4, 3, 0, // Left face
+	4, 7, 3,
+	3, 6, 2, // Top face
+	3, 7, 6,
+	4, 1, 5, // Bottom face
+	4, 0, 1,
 };
 
 void game_awake()
@@ -51,7 +51,7 @@ void game_awake()
 	camera.fov = 45;
 
 	glm_vec3((vec3){ 0, 0, 0 }, camera.target);
-	glm_vec3((vec3){ 0, 0, 3 }, camera.position);
+	glm_vec3((vec3){ 0, 0, -3 }, camera.position);
 	glm_vec3((vec3){ 0, 1, 0 }, camera.up);
 
 	VaoAttribute attributes[] =
@@ -77,27 +77,32 @@ void game_awake()
 	vao = cm_load_vao(attributes, 2, vbo);
 }
 
-versor rotation = { 0 };
+vec3 position = (vec3){ 0, 0, 3 };
+versor rotation = GLM_QUAT_IDENTITY;
+vec3 scale = GLM_VEC3_ONE;
 
 void game_update()
 {
-
+	versor rot;
+	glm_quat(rot, .01f, .2f, .8f, .3f);
+	glm_quat_mul(rotation, rot, rotation);
 }
 
 void game_render()
 {
+	cm_begin_mode_3d(camera);
 	cm_begin_shader_mode(shader);
-	cm_begin_mode_3d(camera, shader);
-	mat4 model = { 0 };
-	glm_translate(model, (vec3){ 0, 0, 0 });
+
+	mat4 model = GLM_MAT4_IDENTITY;
+	glm_translate(model, (vec3){ 0, 0, 3 });
 	glm_quat_rotate(model, rotation, model);
 	glm_scale(model, (vec3){1, 1, 1});
 	cm_set_shader_uniform_m4x4(shader, "model", model[0]);
 
 	cm_draw_vao(vao);
 
-	cm_end_mode_3d();
 	cm_end_shader_mode();
+	cm_end_mode_3d();
 }
 
 void game_frame_end()

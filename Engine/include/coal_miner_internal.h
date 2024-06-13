@@ -76,5 +76,6 @@ extern void cm_enable_cursor(void);
 extern void cm_disable_cursor(void);
 extern void cm_set_mouse_position(const ivec2 position);
 extern void cm_set_mouse_cursor(int cursor);
+extern int cm_set_gamepad_mappings(const char *mappings);            // Set internal gamepad mappings (SDL_GameControllerDB)
 
 #endif //COAL_MINER_INTERNAL_H

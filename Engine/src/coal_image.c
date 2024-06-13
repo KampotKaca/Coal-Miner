@@ -21,10 +21,10 @@ Image cm_load_image(const char* filePath)
 	
 	// Loading file to memory
 	int dataSize = 0;
-	unsigned char *fileData = load_file_data(filePath, &dataSize);
+	unsigned char *fileData = cm_load_file_data(filePath, &dataSize);
 	
 	// Loading image from memory data
-	if (fileData != NULL) image = load_image_from_memory(cm_get_file_extension(filePath), fileData, dataSize);
+	if (fileData != NULL) image = cm_load_image_from_memory(cm_get_file_extension(filePath), fileData, dataSize);
 	
 	CM_FREE(fileData);
 	
@@ -39,83 +39,6 @@ void cm_unload_image(Image image)
 void cm_unload_images(Image* image, int size)
 {
 	for (int i = 0; i < size; ++i) cm_unload_image(image[i]);
-}
-
-Image cm_load_image_svg(const char *fileNameOrString, int width, int height)
-{
-	Image image = { 0 };
-
-#if defined(SUPPORT_FILEFORMAT_SVG)
-	bool isSvgStringValid = false;
-
-    // Validate fileName or string
-    if (fileNameOrString != NULL)
-    {
-        int dataSize = 0;
-        unsigned char *fileData = NULL;
-
-        if (FileExists(fileNameOrString))
-        {
-            fileData = LoadFileData(fileNameOrString, &dataSize);
-            isSvgStringValid = true;
-        }
-        else
-        {
-            // Validate fileData as valid SVG string data
-            //<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="2484" viewBox="0 0 192.756 191.488">
-            if ((fileNameOrString != NULL) &&
-                (fileNameOrString[0] == '<') &&
-                (fileNameOrString[1] == 's') &&
-                (fileNameOrString[2] == 'v') &&
-                (fileNameOrString[3] == 'g'))
-            {
-                fileData = (unsigned char *)fileNameOrString;
-                isSvgStringValid = true;
-            }
-        }
-
-        if (isSvgStringValid)
-        {
-            struct NSVGimage *svgImage = nsvgParse(fileData, "px", 96.0f);
-
-            unsigned char *img = RL_MALLOC(width*height*4);
-
-            // Calculate scales for both the width and the height
-            const float scaleWidth = width/svgImage->width;
-            const float scaleHeight = height/svgImage->height;
-
-            // Set the largest of the 2 scales to be the scale to use
-            const float scale = (scaleHeight > scaleWidth)? scaleWidth : scaleHeight;
-
-            int offsetX = 0;
-            int offsetY = 0;
-
-            if (scaleHeight > scaleWidth) offsetY = (height - svgImage->height*scale) / 2;
-            else offsetX = (width - svgImage->width*scale) / 2;
-
-            // Rasterize
-            struct NSVGrasterizer *rast = nsvgCreateRasterizer();
-            nsvgRasterize(rast, svgImage, (int)offsetX, (int)offsetY, scale, img, width, height, width*4);
-
-            // Populate image struct with all data
-            image.data = img;
-            image.width = width;
-            image.height = height;
-            image.mipmaps = 1;
-            image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-
-            // Free used memory
-            nsvgDelete(svgImage);
-            nsvgDeleteRasterizer(rast);
-        }
-
-        if (isSvgStringValid && (fileData != fileNameOrString)) UnloadFileData(fileData);
-    }
-#else
-	printf("SVG image support not enabled, image can not be loaded");
-#endif
-	
-	return image;
 }
 
 Texture cm_load_texture(const char* filePath)
@@ -150,7 +73,7 @@ Texture cm_load_texture_from_image(Image image)
 	return texture;
 }
 
-unsigned char* load_file_data(const char* filePath, int* dataSize)
+unsigned char* cm_load_file_data(const char* filePath, int* dataSize)
 {
 	unsigned char *data = NULL;
 	*dataSize = 0;
@@ -205,7 +128,7 @@ unsigned char* load_file_data(const char* filePath, int* dataSize)
 	return data;
 }
 
-Image load_image_from_memory(const char *fileType, const unsigned char *fileData, int dataSize)
+Image cm_load_image_from_memory(const char *fileType, const unsigned char *fileData, int dataSize)
 {
 	Image image = { 0 };
 	

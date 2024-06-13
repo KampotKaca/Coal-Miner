@@ -395,9 +395,11 @@ bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data)
 	ubo.dataSize = dataSize;
 	ubo.data = data;
 	ubo.blockId = blockId;
+
 	glGenBuffers(1, &ubo.id);
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo.id);
 	glBufferData(GL_UNIFORM_BUFFER, dataSize, data, GL_STATIC_DRAW);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 32, ubo.id);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	ubo.isReady = true;

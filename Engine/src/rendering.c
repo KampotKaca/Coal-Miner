@@ -17,8 +17,7 @@ struct CameraUbo cameraUbo;
 void load_renderer(Window* wPtr)
 {
 	windowPtr = wPtr;
-//	disable_backface_culling();
-//	cm_load_ubo(32, 3 * sizeof(M4x4) + 2 * sizeof(V3), &cameraUbo);
+	cm_load_ubo(CAMERA_UBO_BINDING_ID, 3 * sizeof(mat4) + 2 * sizeof(vec3), &cameraUbo);
 }
 
 void unload_renderer()
@@ -26,7 +25,7 @@ void unload_renderer()
 	unload_ubos();
 }
 
-void cm_begin_mode_3d(Camera3D camera, Shader shader)
+void cm_begin_mode_3d(Camera3D camera)
 {
 	float aspect = (float)windowPtr->currentFbo.width / (float)windowPtr->currentFbo.height;
 
@@ -44,19 +43,17 @@ void cm_begin_mode_3d(Camera3D camera, Shader shader)
 		glm_ortho(-right, right, -top, top, camera.nearPlane, camera.farPlane, cameraUbo.projection);
 	}
 
-//	printf("x: %f, y: %f, z: %f", camera.up.x, camera.up.y, camera.up.z);
-//	cameraUbo.view = m4x4_look_at(camera.position, camera.target, camera.up);
-
+	glm_lookat(camera.position, camera.target, camera.up, cameraUbo.view);
 	glm_mat4_mul(cameraUbo.projection, cameraUbo.view, cameraUbo.viewProjection);
 
-//	cameraUbo.position = camera.position;
-//	cameraUbo.direction = v3_norm(v3_sub(camera.target, camera.position));
+	glm_vec3(camera.position, cameraUbo.position);
+	vec3 direction;
+	glm_vec3_sub(camera.target, camera.position, direction);
+	glm_normalize(direction);
+	glm_vec3(direction, cameraUbo.direction);
 
-	cm_set_shader_uniform_m4x4(shader, "cameraViewProjection", cameraUbo.projection[0]);
-
-//	enable_depth_test();
-
-//	upload_ubos();
+	upload_ubos();
+	enable_depth_test();
 }
 
 void cm_end_mode_3d()

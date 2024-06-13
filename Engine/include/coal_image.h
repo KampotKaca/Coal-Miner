@@ -9,7 +9,6 @@
 #define SUPPORT_FILEFORMAT_PIC
 #define SUPPORT_FILEFORMAT_PNM
 #define SUPPORT_FILEFORMAT_PSD
-//#define SUPPORT_FILEFORMAT_SVG
 
 #include "coal_miner.h"
 
@@ -41,7 +40,7 @@ typedef enum rlPixelFormat
 	RL_PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA        // 2 bpp
 } rlPixelFormat;
 
-unsigned char* load_file_data(const char* filePath, int* dataSize);
-Image load_image_from_memory(const char *fileType, const unsigned char *fileData, int dataSize);
+extern unsigned char* cm_load_file_data(const char* filePath, int* dataSize);
+extern Image cm_load_image_from_memory(const char *fileType, const unsigned char *fileData, int dataSize);
 
 #endif //COAL_IMAGE_H
