@@ -44,7 +44,7 @@ typedef struct EngineData
 
 //endregion
 
-extern EngineData DEFAULT_ENGINE_DATA;
+extern EngineData CM_DEFAULT_ENGINE_DATA;
 
 extern void coal_run(EngineData data);
 extern void cm_minimize_window();

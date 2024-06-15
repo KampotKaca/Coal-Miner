@@ -7,7 +7,7 @@
 #define CM_FREE(ptr) free(ptr)
 
 #define TRANSFORM_INIT { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 }
-#define CAMERA_INIT { 0, 0, -5, 0, 0, 0, 0, 1, 0, 45, 0, 0.01, 100 }
+#define CAMERA_INIT { 0, 0, -5, 0, 0, 1, 0, 1, 0, 45, 0, 0.01, 100 }
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -19,7 +19,7 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "config.h"
+#include "coal_config.h"
 #include <cglm/cglm.h>
 #include <cglm/call.h>
 #include <cglm/quat.h>
@@ -317,9 +317,9 @@ typedef struct Transform
 // Camera, defines position/orientation in 3d space
 typedef struct Camera3D
 {
-	vec3 position;       // Camera position
-	vec3 target;         // Camera target it looks-at
-	vec3 up;             // Camera up vector (rotation over its axis)
+	vec3 position;     // Camera position
+	vec3 direction;    // Camera target it looks-at
+	vec3 up;           // Camera up vector (rotation over its axis)
 	float fov;         // Camera field-of-view aperture in Y (degrees) in perspective, used as near plane width in orthographic
 	int projection;    // Camera projection: CAMERA_PERSPECTIVE or CAMERA_ORTHOGRAPHIC
 	float nearPlane;
@@ -487,6 +487,7 @@ extern unsigned int cm_frame_rate();
 extern void cm_print_mat4(vec4* mat);
 extern void cm_print_v3(float* v3);
 extern void cm_print_quat(float* q);
+extern void cm_yp_to_direction(float yaw, float pitch, float* direction);
 extern void cm_get_transformation(Transform* trs, vec4* m4);
 extern const char *cm_get_file_extension(const char *filePath);
 extern char *cm_load_file_text(const char *filePath);

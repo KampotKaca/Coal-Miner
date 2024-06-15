@@ -17,6 +17,17 @@ void cm_print_quat(float* q)
 	printf("x: %f, y: %f, z: %f, w: %f\n", q[0], q[1], q[2], q[3]);
 }
 
+void cm_yp_to_direction(float yaw, float pitch, float* direction)
+{
+	glm_vec3(direction, GLM_VEC3_ZERO);
+	float yawRad = glm_rad(yaw);
+	float pitchRad = glm_rad(fmodf(pitch - 90, 180));
+	
+	direction[0] = cosf(pitchRad) * sinf(yawRad);
+	direction[1] = sinf(pitchRad);
+	direction[2] = cosf(pitchRad) * cosf(yawRad);
+}
+
 void cm_get_transformation(Transform* trs, vec4* m4)
 {
 	glm_mat4_identity(m4);

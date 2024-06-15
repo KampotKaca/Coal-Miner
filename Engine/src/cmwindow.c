@@ -1,8 +1,8 @@
-#include "window.h"
+#include "cmwindow.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "rendering.h"
-#include "input.h"
+#include "cmrendering.h"
+#include "cminput.h"
 #include "cmtime.h"
 
 Window WINDOW;

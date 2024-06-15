@@ -1,4 +1,4 @@
-#include "coal_gl.h"
+#include "cmgl.h"
 #include <glad/glad.h>
 #include "coal_image.h"
 #include "coal_miner.h"
@@ -12,8 +12,8 @@ typedef struct Ubo
 	void* data;
 } Ubo;
 
-Ubo ubos[MAX_NUM_UBOS];
-unsigned int uboCount;
+Ubo CM_UBOS[MAX_NUM_UBOS];
+unsigned int cmUboCount;
 
 static int GetPixelDataSize(int width, int height, int format);
 
@@ -260,16 +260,16 @@ Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode)
 	}
 
 	GLenum properties[] = {GL_BUFFER_BINDING};
-	for (int i = 0; i < uboCount; ++i)
+	for (int i = 0; i < cmUboCount; ++i)
 	{
 		GLint bindingIndex;
-		glGetProgramResourceiv(shader.id, GL_UNIFORM_BLOCK, ubos[i].blockId, 1, properties, 1, NULL, &bindingIndex);
+		glGetProgramResourceiv(shader.id, GL_UNIFORM_BLOCK, CM_UBOS[i].blockId, 1, properties, 1, NULL, &bindingIndex);
 
 		if(bindingIndex > 0)
 		{
-			glBindBuffer(GL_UNIFORM_BUFFER, ubos[i].id);
-			glUniformBlockBinding(shader.id, ubos[i].blockId, 0);
-			glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubos[i].id);
+			glBindBuffer(GL_UNIFORM_BUFFER, CM_UBOS[i].id);
+			glUniformBlockBinding(shader.id, CM_UBOS[i].blockId, 0);
+			glBindBufferBase(GL_UNIFORM_BUFFER, 0, CM_UBOS[i].id);
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		}
 	}
@@ -385,7 +385,7 @@ void unload_shader_program(unsigned int id)
 
 bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data)
 {
-	if(uboCount == MAX_NUM_UBOS)
+	if(cmUboCount == MAX_NUM_UBOS)
 	{
 		perror("Maximum amount of Ubos reached please allocate more space from config file");
 		return false;
@@ -403,29 +403,29 @@ bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data)
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	ubo.isReady = true;
-	ubos[uboCount] = ubo;
-	uboCount++;
+	CM_UBOS[cmUboCount] = ubo;
+	cmUboCount++;
 	return true;
 }
 
 void upload_ubos()
 {
-	for (int i = 0; i < uboCount; ++i)
+	for (int i = 0; i < cmUboCount; ++i)
 	{
-		glBindBuffer(GL_UNIFORM_BUFFER, ubos[i].id);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, ubos[i].dataSize, ubos[i].data);
+		glBindBuffer(GL_UNIFORM_BUFFER, CM_UBOS[i].id);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, CM_UBOS[i].dataSize, CM_UBOS[i].data);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}
 }
 
 void unload_ubos()
 {
-	for (int i = 0; i < uboCount; ++i)
+	for (int i = 0; i < cmUboCount; ++i)
 	{
-		glDeleteBuffers(1, &ubos[i].id);
-		ubos[i].isReady = false;
+		glDeleteBuffers(1, &CM_UBOS[i].id);
+		CM_UBOS[i].isReady = false;
 	}
-	uboCount = 0;
+	cmUboCount = 0;
 }
 
 Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo)

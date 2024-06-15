@@ -1,5 +1,5 @@
-#ifndef PLATFORM_H
-#define PLATFORM_H
+#ifndef CMPLATFORM_H
+#define CMPLATFORM_H
 
 #include "coal_miner.h"
 
@@ -151,4 +151,4 @@ const char *get_monitor_name(int monitor);
 
 //endregion
 
-#endif //PLATFORM_H
+#endif //CMPLATFORM_H

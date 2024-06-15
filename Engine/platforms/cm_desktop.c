@@ -7,7 +7,7 @@
 #endif
 
 #include "coal_miner_internal.h"
-#include "platform.h"
+#include "cmplatform.h"
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
@@ -1222,6 +1222,7 @@ void poll_input_events(void)
 
 	// Register previous mouse position
 	glm_vec2(INPUT_ptr->Mouse.currentWheelMove, INPUT_ptr->Mouse.previousWheelMove);
+	glm_vec2(INPUT_ptr->Mouse.currentPosition, INPUT_ptr->Mouse.previousPosition);
 
 	// Register previous touch states
 	for (int i = 0; i < MAX_TOUCH_POINTS; i++) INPUT_ptr->Touch.previousTouchState[i] = INPUT_ptr->Touch.currentTouchState[i];

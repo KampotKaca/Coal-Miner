@@ -1,5 +1,5 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef COAL_CONFIG_H
+#define COAL_CONFIG_H
 
 #define COAL_PROFILE_MAJOR 4
 #define COAL_PROFILE_MINOR 3
@@ -22,4 +22,4 @@
 #define MAX_NUM_UBOS                  16
 #define FRAME_RATE_RECORD_RATE        60
 
-#endif //CONFIG_H
+#endif //COAL_CONFIG_H

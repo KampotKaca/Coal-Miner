@@ -1,5 +1,5 @@
-#ifndef COAL_GL_H
-#define COAL_GL_H
+#ifndef CMGL_H
+#define CMGL_H
 
 #include <stdbool.h>
 
@@ -48,4 +48,4 @@ float get_line_width(void);
 void enable_smooth_lines(void);
 void disable_smooth_lines(void);
 
-#endif //COAL_GL_H
+#endif //CMGL_H

@@ -1,7 +1,7 @@
 #include "coal_miner_internal.h"
-#include "window.h"
+#include "cmwindow.h"
 
-EngineData DEFAULT_ENGINE_DATA =
+EngineData CM_DEFAULT_ENGINE_DATA =
 {
 	(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE),
 	800,

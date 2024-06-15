@@ -1,6 +1,6 @@
 #include "coal_image.h"
 #include <stb_image.h>
-#include "coal_gl.h"
+#include "cmgl.h"
 
 Image cm_load_image(const char* filePath)
 {

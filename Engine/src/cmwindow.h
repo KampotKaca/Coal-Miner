@@ -1,7 +1,7 @@
-#ifndef WINDOW_H
-#define WINDOW_H
+#ifndef CMWINDOW_H
+#define CMWINDOW_H
 
-#include "platform.h"
+#include "cmplatform.h"
 #include "coal_miner_internal.h"
 
 void create_window(unsigned int width, unsigned int height,
@@ -13,4 +13,4 @@ void end_draw();
 
 void close_window();
 
-#endif //WINDOW_H
+#endif //CMWINDOW_H

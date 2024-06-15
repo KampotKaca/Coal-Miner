@@ -4,7 +4,7 @@
 int main(void)
 {
 	EngineData data;
-	memcpy(&data, &DEFAULT_ENGINE_DATA, sizeof(EngineData));
+	memcpy(&data, &CM_DEFAULT_ENGINE_DATA, sizeof(EngineData));
 	char iconLoc[MAX_PATH_SIZE] = RES_PATH;
 	strcat_s(iconLoc, MAX_PATH_SIZE, "2d/app/icons");
 	data.iconLocation = iconLoc;
