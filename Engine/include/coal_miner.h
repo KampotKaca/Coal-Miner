@@ -6,6 +6,9 @@
 #define CM_REALLOC(ptr,sz) realloc(ptr, sz)
 #define CM_FREE(ptr) free(ptr)
 
+#define TRANSFORM_INIT { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 }
+#define CAMERA_INIT { 0, 0, -5, 0, 0, 0, 0, 1, 0, 45, 0, 0.01, 100 }
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -306,52 +309,10 @@ typedef struct Shader
 // Transform, vertex transformation data
 typedef struct Transform
 {
-	vec3 translation;         // Translation
-	versor rotation;          // Rotation
-	vec3 scale;               // Scale
+	vec3 position;    // Translation
+	versor rotation;  // Rotation
+	vec3 scale;       // Scale
 } Transform;
-
-typedef struct Mesh
-{
-	unsigned int vertexCount;        // Number of vertices stored in arrays
-	unsigned int triangleCount;      // Number of triangles stored (indexed or not)
-	
-	// Vertex attributes data
-	float *vertices;        // Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
-	float *texcoords;       // Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
-	float *texcoords2;      // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
-	float *normals;         // Vertex normals (XYZ - 3 components per vertex) (shader-location = 2)
-	float *tangents;        // Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
-	unsigned char *colors;      // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
-	unsigned short *indices;    // Vertex indices (in case vertex data comes indexed)
-	
-	// Animation vertex data
-	float *animVertices;    // Animated vertex positions (after bones transformations)
-	float *animNormals;     // Animated normals (after bones transformations)
-	unsigned char *boneIds; // Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning)
-	float *boneWeights;     // Vertex bone weight, up to 4 bones influence by vertex (skinning)
-} Mesh;
-
-// Bone, skeletal animation bone
-typedef struct BoneInfo
-{
-	char name[32];          // Bone name
-	int parent;             // Bone parent
-} BoneInfo;
-
-// Model, meshes, materials and animation data
-typedef struct Model
-{
-	mat4 transform;       // Local transform matrix
-	
-	unsigned int meshCount;          // Number of meshes
-	Mesh *meshes;           // Meshes array
-	
-	// Animation data
-	unsigned int boneCount;          // Number of bones
-	BoneInfo *bones;        // Bones information (skeleton)
-	Transform *bindPose;    // Bones base transformation (pose)
-} Model;
 
 // Camera, defines position/orientation in 3d space
 typedef struct Camera3D
@@ -510,10 +471,26 @@ extern int cm_get_touch_point_count(void);                       // Get number o
 
 //endregion
 
+//region Time
+
+extern float cm_delta_time_f();
+extern double cm_delta_time();
+extern double cm_time_since_start();
+extern unsigned int cm_get_target_frame_rate();
+extern void cm_set_target_frame_rate(unsigned int t);
+extern unsigned int cm_frame_rate();
+
+//endregion
+
 //region Helper Functions
+
+extern void cm_print_mat4(vec4* mat);
+extern void cm_print_v3(float* v3);
+extern void cm_print_quat(float* q);
+extern void cm_get_transformation(Transform* trs, vec4* m4);
 extern const char *cm_get_file_extension(const char *filePath);
-char *cm_load_file_text(const char *filePath);
-void cm_unload_file_text(char *text);
+extern char *cm_load_file_text(const char *filePath);
+extern void cm_unload_file_text(char *text);
 //endregion
 
 #endif //COAL_MINER_H

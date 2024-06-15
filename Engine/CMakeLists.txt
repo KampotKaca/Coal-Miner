@@ -44,6 +44,7 @@ target_link_libraries(Engine cglm)
 target_link_libraries(Engine glad)
 target_link_libraries(Engine glfw)
 target_link_libraries(Engine stb)
+target_link_libraries(Engine Winmm)
 
 target_include_directories(Engine PUBLIC src/)
 target_include_directories(Engine PUBLIC include/)

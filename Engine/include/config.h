@@ -20,5 +20,6 @@
 #define MAX_SHADER_LOCATIONS          32
 #define MAX_MESH_VERTEX_BUFFERS        7
 #define MAX_NUM_UBOS                  16
+#define FRAME_RATE_RECORD_RATE        60
 
 #endif //CONFIG_H

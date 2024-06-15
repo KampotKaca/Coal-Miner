@@ -14,7 +14,7 @@ void coal_run(EngineData data)
 {
 	set_window_flags(data.configFlags);
 	create_window(data.windowWidth, data.windowHeight, data.title, data.iconLocation);
-	
+
 	data.awakeCallback();
 
 	while (!window_should_close())
@@ -24,8 +24,6 @@ void coal_run(EngineData data)
 		begin_draw();
 		data.renderCallback();
 		end_draw();
-
-		data.frameEndCallback();
 	}
 
 	data.appCloseCallback();

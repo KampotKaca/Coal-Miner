@@ -2,7 +2,7 @@
 #include "coal_miner.h"
 
 Shader shader;
-Camera3D camera;
+Camera3D camera = CAMERA_INIT;
 Vao vao;
 
 float vertices[] =
@@ -44,16 +44,6 @@ void game_awake()
 
 	shader = cm_load_shader(vsPath, fsPath);
 
-	camera = (Camera3D){ 0 };
-	camera.nearPlane = .01f;
-	camera.farPlane = 100;
-	camera.projection = CAMERA_PERSPECTIVE;
-	camera.fov = 45;
-
-	glm_vec3((vec3){ 0, 0, 0 }, camera.target);
-	glm_vec3((vec3){ 0, 0, -3 }, camera.position);
-	glm_vec3((vec3){ 0, 1, 0 }, camera.up);
-
 	VaoAttribute attributes[] =
 	{
 		{ 3, CM_FLOAT, false, 3 * sizeof(float) },
@@ -77,15 +67,14 @@ void game_awake()
 	vao = cm_load_vao(attributes, 2, vbo);
 }
 
-vec3 position = (vec3){ 0, 0, 3 };
-versor rotation = GLM_QUAT_IDENTITY;
-vec3 scale = GLM_VEC3_ONE;
+Transform trs = TRANSFORM_INIT;
 
 void game_update()
 {
 	versor rot;
-	glm_quat(rot, .01f, .2f, .8f, .3f);
-	glm_quat_mul(rotation, rot, rotation);
+	glm_quat(rot, 10 * cm_delta_time_f(), .2f, .8f, .3f);
+	glm_quat_mul(trs.rotation, rot, trs.rotation);
+	trs.position[2] += 2 * cm_delta_time_f();
 }
 
 void game_render()
@@ -93,21 +82,15 @@ void game_render()
 	cm_begin_mode_3d(camera);
 	cm_begin_shader_mode(shader);
 
-	mat4 model = GLM_MAT4_IDENTITY;
-	glm_translate(model, (vec3){ 0, 0, 3 });
-	glm_quat_rotate(model, rotation, model);
-	glm_scale(model, (vec3){1, 1, 1});
+	mat4 model;
+	cm_get_transformation(&trs, model);
+
 	cm_set_shader_uniform_m4x4(shader, "model", model[0]);
 
 	cm_draw_vao(vao);
 
 	cm_end_shader_mode();
 	cm_end_mode_3d();
-}
-
-void game_frame_end()
-{
-
 }
 
 void game_close()

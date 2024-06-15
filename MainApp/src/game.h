@@ -4,7 +4,6 @@
 void game_awake();
 void game_update();
 void game_render();
-void game_frame_end();
 void game_close();
 
 #endif //GAME_H

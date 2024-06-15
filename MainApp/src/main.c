@@ -12,7 +12,6 @@ int main(void)
 	data.awakeCallback = game_awake;
 	data.updateCallback = game_update;
 	data.renderCallback = game_render;
-	data.frameEndCallback = game_frame_end;
 	data.appCloseCallback = game_close;
 
 	coal_run(data);

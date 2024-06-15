@@ -38,7 +38,6 @@ typedef struct EngineData
 	void (*updateCallback)();
 	void (*renderCallback)();
 
-	void (*frameEndCallback)();
 	void (*appCloseCallback)();
 
 }EngineData;

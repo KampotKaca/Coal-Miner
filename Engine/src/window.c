@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include "rendering.h"
 #include "input.h"
+#include "cmtime.h"
 
 Window WINDOW;
 Input INPUT;
@@ -60,6 +61,8 @@ void create_window(unsigned int width, unsigned int height,
 		return;
 	}
 
+	load_time(WINDOW.platformHandle);
+
 	iconCount = 0;
 
 	if(iconLocation != NULL)
@@ -114,6 +117,7 @@ void begin_draw()
 void end_draw()
 {
 	swap_screen_buffer();
+	update_time();
 	poll_input_events();
 }
 
