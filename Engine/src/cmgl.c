@@ -439,7 +439,7 @@ Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo)
 	glGenVertexArrays(1, &vao.id);
 	glBindVertexArray(vao.id);
 
-	vao.vbo = cm_load_vbo(vbo.dataSize, vbo.data, vbo.isStatic, vbo.ebo);
+	vao.vbo = cm_load_vbo(vbo.dataSize, vbo.vertexCount, vbo.data, vbo.isStatic, vbo.ebo);
 
 	for (int i = 0; i < vao.attributeCount; ++i) vao.stride += vao.attributes[i].stride;
 
@@ -468,11 +468,12 @@ void cm_unload_vao(Vao vao)
 	CM_FREE(vao.attributes);
 }
 
-Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic, Ebo ebo)
+Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, void* data, bool isStatic, Ebo ebo)
 {
 	Vbo vbo = { 0 };
 	vbo.ebo = (Ebo){ 0 };
 	vbo.dataSize = dataSize;
+	vbo.vertexCount = vertexCount;
 	vbo.data = data;
 	vbo.isStatic = isStatic;
 	glGenBuffers(1, &vbo.id);
@@ -481,7 +482,8 @@ Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic, Ebo ebo)
 	if(vbo.isStatic) glBufferData(GL_ARRAY_BUFFER, vbo.dataSize, vbo.data, GL_STATIC_DRAW);
 	else glBufferData(GL_ARRAY_BUFFER, vbo.dataSize, vbo.data, GL_DYNAMIC_DRAW);
 
-	vbo.ebo = cm_load_ebo(ebo.dataSize, ebo.data, ebo.isStatic, ebo.type, ebo.indexCount);
+	if(ebo.dataSize > 0)
+		vbo.ebo = cm_load_ebo(ebo.dataSize, ebo.data, ebo.isStatic, ebo.type, ebo.indexCount);
 
 	return vbo;
 }
@@ -490,6 +492,16 @@ void cm_unload_vbo(Vbo vbo)
 {
 	cm_unload_ebo(vbo.ebo);
 	glDeleteBuffers(1, &vbo.id);
+}
+
+void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, void* data)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, vbo->id);
+	vbo->isStatic = false;
+	vbo->dataSize = dataSize;
+	vbo->data = data;
+	glBufferData(GL_ARRAY_BUFFER, vbo->dataSize, vbo->data, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 Ebo cm_load_ebo(unsigned int dataSize, void* data, bool isStatic,
@@ -515,11 +527,30 @@ void cm_unload_ebo(Ebo ebo)
 	glDeleteBuffers(1, &ebo.id);
 }
 
-extern void cm_draw_vao(Vao vao)
+void cm_reupload_ebo(Ebo* ebo, unsigned int dataSize, void* data, unsigned int indexCount)
+{
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo->id);
+	ebo->isStatic = false;
+	ebo->dataSize = dataSize;
+	ebo->data = data;
+	ebo->indexCount = indexCount;
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, ebo->dataSize, ebo->data, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+extern void cm_draw_vao(Vao vao, DrawType drawType)
 {
 	glBindVertexArray(vao.id);
-	Ebo ebo = vao.vbo.ebo;
-	glDrawElements(GL_TRIANGLES, (int)ebo.indexCount, ebo.type, 0);
+
+	if(vao.vbo.ebo.dataSize == 0)
+	{
+		glDrawArrays(drawType, 0, (int)vao.vbo.vertexCount);
+	}
+	else
+	{
+		Ebo ebo = vao.vbo.ebo;
+		glDrawElements(drawType, (int)ebo.indexCount, ebo.type, 0);
+	}
 }
 
 void cm_begin_shader_mode(Shader shader)
@@ -536,6 +567,13 @@ void cm_set_shader_uniform_m4x4(Shader shader, const char* name, float* m)
 {
 	int location = glGetUniformLocation(shader.id, name);
 	glUniformMatrix4fv(location, 1, GL_FALSE, m);
+}
+
+void cm_set_texture(Shader shader, const char* name, unsigned int texId, unsigned char bindingPoint)
+{
+	int location = glGetUniformLocation(shader.id, name);
+	glBindTexture(GL_TEXTURE0 + bindingPoint, texId);
+	glUniform1i(location, GL_TEXTURE0 + bindingPoint);
 }
 
 void enable_color_blend(void) { glEnable(GL_BLEND); }

@@ -84,23 +84,30 @@ static void FreeCamera()
 	vec3 right;
 	glm_cross(camera.direction, camera.up, right);
 	
-	vec2 moveDir = { 0, 0 };
+	vec3 moveDir = { 0, 0 };
 	
 	if(cm_is_key_down(KEY_A)) moveDir[0]--;
 	if(cm_is_key_down(KEY_D)) moveDir[0]++;
-	if(cm_is_key_down(KEY_W)) moveDir[1]++;
-	if(cm_is_key_down(KEY_S)) moveDir[1]--;
+	if(cm_is_key_down(KEY_SPACE)) moveDir[1]++;
+	if(cm_is_key_down(KEY_LEFT_SHIFT)) moveDir[1]--;
+	if(cm_is_key_down(KEY_W)) moveDir[2]++;
+	if(cm_is_key_down(KEY_S)) moveDir[2]--;
 	
 	glm_normalize(moveDir);
 	
-	if(!glm_vec2_eqv_eps(moveDir, GLM_VEC2_ZERO))
+	if(!glm_vec3_eqv_eps(moveDir, GLM_VEC2_ZERO))
 	{
 		vec3 rDir;
 		glm_vec3_scale(right, moveDir[0] * CAM_FREE_MOVE_SPEED * cm_delta_time_f(), rDir);
 		vec3 fDir;
-		glm_vec3_scale(camera.direction, moveDir[1] * CAM_FREE_MOVE_SPEED * cm_delta_time_f(), fDir);
+		glm_vec3_scale(camera.direction, moveDir[2] * CAM_FREE_MOVE_SPEED * cm_delta_time_f(), fDir);
+		vec3 upDir;
+		glm_vec3_scale(camera.up, moveDir[1] * CAM_FREE_MOVE_SPEED * cm_delta_time_f(), upDir);
+
 		glm_vec3_add(camera.position, fDir, camera.position);
 		glm_vec3_add(camera.position, rDir, camera.position);
+		glm_vec3_add(camera.position, upDir, camera.position);
+
 	}
 }
 

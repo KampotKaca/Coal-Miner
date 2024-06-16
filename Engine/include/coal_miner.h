@@ -340,6 +340,7 @@ typedef struct Vbo
 {
 	unsigned int id;
 	unsigned int dataSize;
+	unsigned int vertexCount;
 	bool isStatic;
 	void* data;
 	Ebo ebo;
@@ -381,6 +382,17 @@ typedef enum VaoDataType
 	CM_FLOAT = 0x1406,
 } VaoDataType;
 
+typedef enum DrawType
+{
+	CM_POINTS = 0x0000,
+	CM_LINES = 0x0001,
+	CM_LINE_LOOP = 0x0002,
+	CM_LINE_STRIP = 0x0003,
+	CM_TRIANGLES = 0x0004,
+	CM_TRIANGLE_STRIPS = 0x0005,
+	CM_TRIANGLE_FAN = 0x0006
+} DrawType;
+
 //endregion
 
 //region Textures
@@ -401,6 +413,7 @@ extern void cm_begin_shader_mode(Shader shader);
 extern void cm_end_shader_mode();
 
 extern void cm_set_shader_uniform_m4x4(Shader shader, const char* name, float* m);
+extern void cm_set_texture(Shader shader, const char* name, unsigned int texId, unsigned char bindingPoint);
 //endregion
 
 //region Camera
@@ -413,13 +426,15 @@ extern bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data)
 extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo);
 extern void cm_unload_vao(Vao vao);
 
-extern Vbo cm_load_vbo(unsigned int dataSize, void* data, bool isStatic, Ebo ebo);
+extern Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, void* data, bool isStatic, Ebo ebo);
 extern void cm_unload_vbo(Vbo vbo);
+extern void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, void* data);
 extern Ebo cm_load_ebo(unsigned int dataSize, void* data, bool isStatic,
 					   unsigned int type, unsigned int indexCount);
 extern void cm_unload_ebo(Ebo ebo);
+extern void cm_reupload_ebo(Ebo* ebo, unsigned int dataSize, void* data, unsigned int indexCount);
 
-extern void cm_draw_vao(Vao vao);
+extern void cm_draw_vao(Vao vao, DrawType drawType);
 //endregion
 
 //region Input Functions
