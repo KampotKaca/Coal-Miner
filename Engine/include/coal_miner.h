@@ -431,6 +431,7 @@ extern void cm_unload_vao(Vao vao);
 extern Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, void* data, bool isStatic, Ebo ebo);
 extern void cm_unload_vbo(Vbo vbo);
 extern void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, void* data);
+extern void cm_reupload_vbo_partial(Vbo* vbo, unsigned int dataOffset, unsigned int uploadSize);
 extern Ebo cm_load_ebo(unsigned int dataSize, void* data, bool isStatic,
 					   unsigned int type, unsigned int indexCount);
 extern void cm_unload_ebo(Ebo ebo);

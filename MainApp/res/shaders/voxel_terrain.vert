@@ -3,9 +3,13 @@
 //1bit zId
 //1bit yId
 //1bit xId
+
 //4bit BlockPositionZ
 //8bit BlockPositionY
 //4bit BlockPositionX
+
+//4bit chunkIdX
+//4bit chunkIdZ
 
 layout(std140, binding = 32) uniform Camera
 {

@@ -514,6 +514,14 @@ void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, void* data)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+void cm_reupload_vbo_partial(Vbo* vbo, unsigned int dataOffset, unsigned int uploadSize)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, vbo->id);
+	vbo->isStatic = false;
+	glBufferSubData(GL_ARRAY_BUFFER, dataOffset, uploadSize, vbo->data);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 Ebo cm_load_ebo(unsigned int dataSize, void* data, bool isStatic,
                 unsigned int type, unsigned int indexCount)
 {

@@ -1,4 +1,6 @@
 #include "cmtime.h"
+#include <time.h>
+
 #ifdef _WIN32
 
 #else
@@ -28,6 +30,8 @@ void load_time(Window* ptr)
 	TIME.platformPtr = ptr;
 	TIME.timeSinceStart = glfwGetTime();
 	TIME.frameRecordTime = TIME.timeSinceStart;
+
+	srand(time(0));
 }
 
 void update_time()

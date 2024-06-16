@@ -2,17 +2,27 @@
 #include "config.h"
 #include <FastNoiseLite.h>
 
-Shader terrainShader;
-Vao vao;
+#define TERRAIN_CHUNK_CUBE_COUNT TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_HEIGHT
+
+typedef struct TerrainData
+{
+	int xSeed, zSeed;
+	unsigned int chunkCubeCount;
+	unsigned int chunkHorizontalSlice;
+}TerrainData;
 
 typedef struct Chunk
 {
-	unsigned char cells[TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_HEIGHT];
-	unsigned int vertices[TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_HEIGHT * 2];
-	unsigned int indices[TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_HEIGHT * 3];
+	unsigned char cells[TERRAIN_CHUNK_CUBE_COUNT];
+	unsigned int vertices[TERRAIN_CHUNK_CUBE_COUNT * 2];
+	unsigned int indices[TERRAIN_CHUNK_CUBE_COUNT * 3];
 	bool chunkChanged;
 }Chunk;
 
+Shader terrainShader;
+Vao terrainVao;
+
+TerrainData terrainData = { 0 };
 Chunk terrainChunk;
 
 static void CreateShader();
@@ -23,6 +33,10 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 //region Callback Functions
 void load_terrain()
 {
+	terrainData.xSeed = rand() % 10000000;
+	terrainData.zSeed = rand() % 10000000;
+	terrainData.chunkHorizontalSlice = TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE;
+	terrainData.chunkCubeCount = terrainData.chunkHorizontalSlice * TERRAIN_HEIGHT;
 	CreateChunkCells(&terrainChunk);
 	
 	unsigned int vCount = 0, iCount = 0;
@@ -40,14 +54,14 @@ void draw_terrain()
 {
 	cm_begin_shader_mode(terrainShader);
 
-	cm_draw_vao(vao, CM_TRIANGLES);
+	cm_draw_vao(terrainVao, CM_TRIANGLES);
 	
 	cm_end_shader_mode();
 }
 
 void dispose_terrain()
 {
-	cm_unload_vao(vao);
+	cm_unload_vao(terrainVao);
 	cm_unload_shader(terrainShader);
 }
 //endregion
@@ -87,14 +101,14 @@ static void CreateVao(unsigned int indexCount, unsigned int vertexCount)
 	ebo.type = CM_UINT;
 	ebo.indexCount = indexCount;
 	vbo.ebo = ebo;
-	
-	vao = cm_load_vao(attributes, 1, vbo);
+
+	terrainVao = cm_load_vao(attributes, 1, vbo);
 }
 
 static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCount)
 {
 	unsigned int indexCount = 0;
-	unsigned int idStart = 0;
+	unsigned int vertCount = 0;
 	unsigned int cubeId = 0;
 	
 	unsigned int indexSpace = sizeof(chunk->indices) / 4;
@@ -107,38 +121,45 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 			for (unsigned int z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
 			{
 				if(chunk->cells[cubeId] == 0) goto ending;
+
+				if(indexSpace - indexCount < 36 || vertexSpace - vertCount < 8)
+				{
+					printf("Space is too low, terminating the execution!!! vFree: %i, iFree: %i",
+						   indexSpace - indexCount, vertexSpace - vertCount);
+					break;
+				}
 				
 				unsigned int sIndexCount = indexCount;
 				unsigned int frontId = cubeId + 1;
 				unsigned int backId = cubeId - 1;
 				unsigned int rightId = cubeId + TERRAIN_CHUNK_SIZE;
 				unsigned int leftId = cubeId - TERRAIN_CHUNK_SIZE;
-				unsigned int topId = cubeId + TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE;
-				unsigned int bottomId = cubeId - TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE;
+				unsigned int topId = cubeId + terrainData.chunkHorizontalSlice;
+				unsigned int bottomId = cubeId - terrainData.chunkHorizontalSlice;
 				
 				//front face
 				if(z == TERRAIN_CHUNK_SIZE - 1 || chunk->cells[frontId] == 0)
 				{
-					chunk->indices[indexCount] = idStart + 5;
-					chunk->indices[indexCount + 1] = idStart + 4;
-					chunk->indices[indexCount + 2] = idStart + 7;
+					chunk->indices[indexCount] = vertCount + 5;
+					chunk->indices[indexCount + 1] = vertCount + 4;
+					chunk->indices[indexCount + 2] = vertCount + 7;
 
-					chunk->indices[indexCount + 3] = idStart + 5;
-					chunk->indices[indexCount + 4] = idStart + 7;
-					chunk->indices[indexCount + 5] = idStart + 6;
+					chunk->indices[indexCount + 3] = vertCount + 5;
+					chunk->indices[indexCount + 4] = vertCount + 7;
+					chunk->indices[indexCount + 5] = vertCount + 6;
 					indexCount += 6;
 				}
 				
 				//back face
 				if(z == 0 || chunk->cells[backId] == 0)
 				{
-					chunk->indices[indexCount]      = idStart + 0;
-					chunk->indices[indexCount + 1]  = idStart + 1;
-					chunk->indices[indexCount + 2]  = idStart + 2;
+					chunk->indices[indexCount]      = vertCount + 0;
+					chunk->indices[indexCount + 1]  = vertCount + 1;
+					chunk->indices[indexCount + 2]  = vertCount + 2;
 					
-					chunk->indices[indexCount + 3]  = idStart + 0;
-					chunk->indices[indexCount + 4]  = idStart + 2;
-					chunk->indices[indexCount + 5]  = idStart + 3;
+					chunk->indices[indexCount + 3]  = vertCount + 0;
+					chunk->indices[indexCount + 4]  = vertCount + 2;
+					chunk->indices[indexCount + 5]  = vertCount + 3;
 					
 					indexCount += 6;
 				}
@@ -146,52 +167,52 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 				//right face
 				if(x == TERRAIN_CHUNK_SIZE - 1 || chunk->cells[rightId] == 0)
 				{
-					chunk->indices[indexCount]  = idStart + 1;
-					chunk->indices[indexCount + 1]  = idStart + 5;
-					chunk->indices[indexCount + 2]  = idStart + 6;
+					chunk->indices[indexCount]  = vertCount + 1;
+					chunk->indices[indexCount + 1]  = vertCount + 5;
+					chunk->indices[indexCount + 2]  = vertCount + 6;
 
-					chunk->indices[indexCount + 3]  = idStart + 1;
-					chunk->indices[indexCount + 4] = idStart + 6;
-					chunk->indices[indexCount + 5] = idStart + 2;
+					chunk->indices[indexCount + 3]  = vertCount + 1;
+					chunk->indices[indexCount + 4] = vertCount + 6;
+					chunk->indices[indexCount + 5] = vertCount + 2;
 					indexCount += 6;
 				}
 				
 				//left face
 				if(x == 0 || chunk->cells[leftId] == 0)
 				{
-					chunk->indices[indexCount] = idStart + 4;
-					chunk->indices[indexCount + 1] = idStart + 0;
-					chunk->indices[indexCount + 2] = idStart + 3;
+					chunk->indices[indexCount] = vertCount + 4;
+					chunk->indices[indexCount + 1] = vertCount + 0;
+					chunk->indices[indexCount + 2] = vertCount + 3;
 
-					chunk->indices[indexCount + 3] = idStart + 4;
-					chunk->indices[indexCount + 4] = idStart + 3;
-					chunk->indices[indexCount + 5] = idStart + 7;
+					chunk->indices[indexCount + 3] = vertCount + 4;
+					chunk->indices[indexCount + 4] = vertCount + 3;
+					chunk->indices[indexCount + 5] = vertCount + 7;
 					indexCount += 6;
 				}
 				
 				//top face
 				if(y == TERRAIN_HEIGHT - 1 || chunk->cells[topId] == 0)
 				{
-					chunk->indices[indexCount] = idStart + 3;
-					chunk->indices[indexCount + 1] = idStart + 2;
-					chunk->indices[indexCount + 2] = idStart + 6;
+					chunk->indices[indexCount] = vertCount + 3;
+					chunk->indices[indexCount + 1] = vertCount + 2;
+					chunk->indices[indexCount + 2] = vertCount + 6;
 					
-					chunk->indices[indexCount + 3] = idStart + 3;
-					chunk->indices[indexCount + 4] = idStart + 6;
-					chunk->indices[indexCount + 5] = idStart + 7;
+					chunk->indices[indexCount + 3] = vertCount + 3;
+					chunk->indices[indexCount + 4] = vertCount + 6;
+					chunk->indices[indexCount + 5] = vertCount + 7;
 					indexCount += 6;
 				}
 				
 				//bottom face
 				if(y == 0 || chunk->cells[bottomId] == 0)
 				{
-					chunk->indices[indexCount] = idStart + 4;
-					chunk->indices[indexCount + 1] = idStart + 5;
-					chunk->indices[indexCount + 2] = idStart + 1;
+					chunk->indices[indexCount] = vertCount + 4;
+					chunk->indices[indexCount + 1] = vertCount + 5;
+					chunk->indices[indexCount + 2] = vertCount + 1;
 					
-					chunk->indices[indexCount + 3] = idStart + 4;
-					chunk->indices[indexCount + 4] = idStart + 1;
-					chunk->indices[indexCount + 5] = idStart + 0;
+					chunk->indices[indexCount + 3] = vertCount + 4;
+					chunk->indices[indexCount + 4] = vertCount + 1;
+					chunk->indices[indexCount + 5] = vertCount + 0;
 					indexCount += 6;
 				}
 				
@@ -201,17 +222,17 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 					unsigned int blockIndex = (x << 12) | (y << 4) | z;
 					blockIndex = blockIndex << 3;
 					
-					chunk->vertices[idStart]     = blockIndex | 0;
-					chunk->vertices[idStart + 1] = blockIndex | 4;
-					chunk->vertices[idStart + 2] = blockIndex | 6;
-					chunk->vertices[idStart + 3] = blockIndex | 2;
+					chunk->vertices[vertCount]     = blockIndex | 0;
+					chunk->vertices[vertCount + 1] = blockIndex | 4;
+					chunk->vertices[vertCount + 2] = blockIndex | 6;
+					chunk->vertices[vertCount + 3] = blockIndex | 2;
 					
-					chunk->vertices[idStart + 4] = blockIndex | 1;
-					chunk->vertices[idStart + 5] = blockIndex | 5;
-					chunk->vertices[idStart + 6] = blockIndex | 7;
-					chunk->vertices[idStart + 7] = blockIndex | 3;
-					
-					idStart += 8;
+					chunk->vertices[vertCount + 4] = blockIndex | 1;
+					chunk->vertices[vertCount + 5] = blockIndex | 5;
+					chunk->vertices[vertCount + 6] = blockIndex | 7;
+					chunk->vertices[vertCount + 7] = blockIndex | 3;
+
+					vertCount += 8;
 					//endregion
 				}
 				
@@ -221,9 +242,9 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 		}
 	}
 	
-	*vCount = idStart;
+	*vCount = vertCount;
 	*iCount = indexCount;
-	printf("allSpace: %i, vertices %i\n", vertexSpace, idStart);
+	printf("allSpace: %i, vertices %i\n", vertexSpace, vertCount);
 	printf("allSpace: %i, indices %i\n", indexSpace, indexCount);
 }
 
@@ -231,17 +252,22 @@ static void CreateChunkCells(Chunk* chunk)
 {
 	fnl_state noise = fnlCreateState();
 	noise.noise_type = FNL_NOISE_PERLIN;
-	
+
+	int minHeight = (TERRAIN_HEIGHT - TERRAIN_RANDOMNESS_AREA) / 2;
+
 	for (unsigned int x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
 	{
 		for (unsigned int z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
 		{
-			float nVal = fnlGetNoise2D(&noise, (float)x, (float)z);
+			float nVal = (fnlGetNoise2D(&noise, (float)(terrainData.xSeed + x), (float)(terrainData.zSeed + z)) + 1) * .5f;
 			unsigned int xzId = x * TERRAIN_CHUNK_SIZE + z;
-			unsigned int till = (unsigned int)(fmaxf(0, nVal * TERRAIN_HEIGHT));
+			unsigned int till = (unsigned int)(minHeight + (int)(nVal * TERRAIN_RANDOMNESS_AREA));
 			
 			for (unsigned int y = 0; y < till; ++y)
-				chunk->cells[y * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE + xzId] = 1;
+				chunk->cells[y * terrainData.chunkHorizontalSlice + xzId] = 1;
+
+			for (unsigned int y = till; y < TERRAIN_HEIGHT; ++y)
+				chunk->cells[y * terrainData.chunkHorizontalSlice + xzId] = 0;
 		}
 	}
 }
