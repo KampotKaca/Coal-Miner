@@ -256,7 +256,7 @@ Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode)
 		glGetActiveUniform(shader.id, i, sizeof(name) - 1, &namelen, &num, &type, name);
 
 		name[namelen] = 0;
-		printf("SHADER: [ID %i] Active uniform (%s) set at location: %i", shader.id, name, glGetUniformLocation(shader.id, name));
+//		printf("SHADER: [ID %i] Active uniform (%s) set at location: %i", shader.id, name, glGetUniformLocation(shader.id, name));
 	}
 
 	GLenum properties[] = {GL_BUFFER_BINDING};
@@ -444,13 +444,23 @@ Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo)
 	for (int i = 0; i < vao.attributeCount; ++i) vao.stride += vao.attributes[i].stride;
 
 	unsigned int offset = 0;
+	
 	for (int i = 0; i < vao.attributeCount; ++i)
 	{
 		VaoAttribute attrib = vao.attributes[i];
-		glVertexAttribPointer(i, (int)attrib.size,
-							  attrib.type,
-							  attrib.normalized,
-							  (int)vao.stride, (void*)offset);
+		if(attrib.type < CM_HALF_FLOAT)
+		{
+			glVertexAttribIPointer(i, (int)attrib.size, attrib.type,
+			                      (int)vao.stride, (void*)offset);
+		}
+		else
+		{
+			glVertexAttribPointer(i, (int)attrib.size,
+			                      attrib.type,
+			                      attrib.normalized,
+			                      (int)vao.stride, (void*)offset);
+		}
+		
 		offset += attrib.stride;
 		glEnableVertexAttribArray(i);
 	}
@@ -569,6 +579,18 @@ void cm_set_shader_uniform_m4x4(Shader shader, const char* name, float* m)
 	glUniformMatrix4fv(location, 1, GL_FALSE, m);
 }
 
+extern void cm_set_shader_uniform_vec4(Shader shader, const char* name, float* m)
+{
+	int location = glGetUniformLocation(shader.id, name);
+	glUniform4f(location, m[0], m[1], m[2], m[3]);
+}
+
+extern void cm_set_shader_uniform_f(Shader shader, const char* name, float f)
+{
+	int location = glGetUniformLocation(shader.id, name);
+	glUniform1f(location, f);
+}
+
 void cm_set_texture(Shader shader, const char* name, unsigned int texId, unsigned char bindingPoint)
 {
 	int location = glGetUniformLocation(shader.id, name);
@@ -576,20 +598,20 @@ void cm_set_texture(Shader shader, const char* name, unsigned int texId, unsigne
 	glUniform1i(location, GL_TEXTURE0 + bindingPoint);
 }
 
-void enable_color_blend(void) { glEnable(GL_BLEND); }
-void disable_color_blend(void) { glDisable(GL_BLEND); }
-void enable_depth_test(void) { glEnable(GL_DEPTH_TEST); }
-void disable_depth_test(void) { glDisable(GL_DEPTH_TEST); }
-void enable_depth_mask(void) { glDepthMask(GL_TRUE); }
-void disable_depth_mask(void) { glDepthMask(GL_FALSE); }
-void enable_backface_culling(void) { glEnable(GL_CULL_FACE); }
-void disable_backface_culling(void) { glDisable(GL_CULL_FACE); }
+void cm_enable_color_blend(void) { glEnable(GL_BLEND); }
+void cm_disable_color_blend(void) { glDisable(GL_BLEND); }
+void cm_enable_depth_test(void) { glEnable(GL_DEPTH_TEST); }
+void cm_disable_depth_test(void) { glDisable(GL_DEPTH_TEST); }
+void cm_enable_depth_mask(void) { glDepthMask(GL_TRUE); }
+void cm_disable_depth_mask(void) { glDepthMask(GL_FALSE); }
+void cm_enable_backface_culling(void) { glEnable(GL_CULL_FACE); }
+void cm_disable_backface_culling(void) { glDisable(GL_CULL_FACE); }
 
 // Set color mask active for screen read/draw
-void color_mask(unsigned int mask) { glColorMask((mask & CM_RED) > 0, (mask & CM_GREEN) > 0,
+void cm_color_mask(unsigned int mask) { glColorMask((mask & CM_RED) > 0, (mask & CM_GREEN) > 0,
 												 (mask & CM_BLUE) > 0, (mask & CM_ALPHA) > 0); }
 
-void set_cull_face(int mode)
+void cm_set_cull_face(int mode)
 {
 	switch (mode)
 	{
@@ -599,25 +621,25 @@ void set_cull_face(int mode)
 	}
 }
 
-void enable_scissor_test(void) { glEnable(GL_SCISSOR_TEST); }
-void disable_scissor_test(void) { glDisable(GL_SCISSOR_TEST); }
-void scissor(int x, int y, int width, int height) { glScissor(x, y, width, height); }
+void cm_enable_scissor_test(void) { glEnable(GL_SCISSOR_TEST); }
+void cm_disable_scissor_test(void) { glDisable(GL_SCISSOR_TEST); }
+void cm_scissor(int x, int y, int width, int height) { glScissor(x, y, width, height); }
 
 // Enable wire mode
-void enable_wire_mode(void)
+void cm_enable_wire_mode(void)
 {
 	// NOTE: glPolygonMode() not available on OpenGL ES
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
 
-void enable_point_mode(void)
+void cm_enable_point_mode(void)
 {
 	// NOTE: glPolygonMode() not available on OpenGL ES
     glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
     glEnable(GL_PROGRAM_POINT_SIZE);
 }
 // Disable wire mode
-void disable_wire_mode(void)
+void cm_disable_wire_mode(void)
 {
 	// NOTE: glPolygonMode() not available on OpenGL ES
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

@@ -1,8 +1,9 @@
 #version 430
 
+in vec4 out_color;
 out vec4 finalColor;
 
 void main()
 {
-    finalColor = vec4(0.5, 1, 1, 1);
+    finalColor = out_color;
 }

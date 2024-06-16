@@ -77,4 +77,21 @@ extern void cm_set_mouse_position(const ivec2 position);
 extern void cm_set_mouse_cursor(int cursor);
 extern int cm_set_gamepad_mappings(const char *mappings);            // Set internal gamepad mappings (SDL_GameControllerDB)
 
+void cm_enable_color_blend(void);
+void cm_disable_color_blend(void);
+void cm_enable_depth_test(void);
+void cm_disable_depth_test(void);
+void cm_enable_depth_mask(void);
+void cm_disable_depth_mask(void);
+void cm_enable_backface_culling(void);
+void cm_disable_backface_culling(void);
+void cm_color_mask(unsigned int mask);
+void cm_set_cull_face(int mode);
+void cm_enable_scissor_test(void);
+void cm_disable_scissor_test(void);
+void cm_scissor(int x, int y, int width, int height);
+void cm_enable_wire_mode(void);
+void cm_enable_point_mode(void);
+void cm_disable_wire_mode(void);
+
 #endif //COAL_MINER_INTERNAL_H

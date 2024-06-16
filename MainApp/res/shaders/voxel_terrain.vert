@@ -1,6 +1,7 @@
 #version 430
 
-layout(location = 0) in vec3 vertexPosition;
+//3bits vIndex
+layout(location = 0) in uint vertex;
 
 layout(std140, binding = 32) uniform Camera
 {
@@ -11,7 +12,13 @@ layout(std140, binding = 32) uniform Camera
     vec3 cameraDirection;
 };
 
+out vec4 out_color;
+
 void main()
 {
-    gl_Position = cameraViewProjection * vec4(vertexPosition, 1.0);
+//    vec3 position = vec3(float((vertex & uint(4)) >> 2), float((vertex & uint(2)) >> 1), float(vertex & uint(1)));
+    vec3 position = vec3(float((vertex & uint(4)) >> 2), float((vertex & uint(2)) >> 1), float(vertex & uint(1)));
+
+    out_color = vec4(position, 1.0);
+    gl_Position = cameraViewProjection * vec4(position, 1.0);
 }

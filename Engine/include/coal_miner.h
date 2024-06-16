@@ -7,7 +7,7 @@
 #define CM_FREE(ptr) free(ptr)
 
 #define TRANSFORM_INIT { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 }
-#define CAMERA_INIT { 0, 0, -5, 0, 0, 1, 0, 1, 0, 45, 0, 0.01, 100 }
+#define CAMERA_INIT { 0, 2, -5, 0, 0, 1, 0, 1, 0, 45, 0, 0.01, 100 }
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -413,6 +413,8 @@ extern void cm_begin_shader_mode(Shader shader);
 extern void cm_end_shader_mode();
 
 extern void cm_set_shader_uniform_m4x4(Shader shader, const char* name, float* m);
+extern void cm_set_shader_uniform_vec4(Shader shader, const char* name, float* m);
+extern void cm_set_shader_uniform_f(Shader shader, const char* name, float f);
 extern void cm_set_texture(Shader shader, const char* name, unsigned int texId, unsigned char bindingPoint);
 //endregion
 
