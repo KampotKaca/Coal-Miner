@@ -17,6 +17,7 @@ struct CameraUbo CM_CAMERA_UBO;
 void load_renderer(Window* wPtr)
 {
 	CM_RN_WIN_P = wPtr;
+	
 	cm_load_ubo(CAMERA_UBO_BINDING_ID, 3 * sizeof(mat4) + 2 * sizeof(vec3), &CM_CAMERA_UBO);
 }
 

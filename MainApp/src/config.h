@@ -6,11 +6,10 @@
 #define CAM_FREE_ROTATE_MIN_LIMIT 10
 #define CAM_FREE_ROTATE_MAX_LIMIT 170
 
-#define GRID_SIZE 256
+#define GRID_SIZE 512
 #define GRID_AXIS_SIZE 1
 #define GRID_COLOR ((vec4){ 1, 1, 1, 0.3 })
 
-#define TERRAIN_CHUNK_SIZE 1
-#define TERRAIN_HEIGHT 1
-
+#define TERRAIN_CHUNK_SIZE 16
+#define TERRAIN_HEIGHT 32
 #endif //CONFIG_H

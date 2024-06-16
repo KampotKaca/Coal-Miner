@@ -45,16 +45,14 @@ void load_grid()
 
 void draw_grid()
 {
-//	cm_disable_backface_culling();
 	cm_begin_shader_mode(gridShader);
-	
+
 	cm_set_shader_uniform_f(gridShader, "u_axis_offset", -GRID_SIZE * 0.5f);
 	cm_set_shader_uniform_f(gridShader, "u_axis_size", GRID_AXIS_SIZE);
 	cm_set_shader_uniform_vec4(gridShader, "u_color", GRID_COLOR);
 	cm_draw_vao(gridVao, CM_LINES);
-	
+
 	cm_end_shader_mode();
-//	cm_enable_backface_culling();
 }
 
 void dispose_grid()

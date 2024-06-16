@@ -7,7 +7,7 @@
 #define CM_FREE(ptr) free(ptr)
 
 #define TRANSFORM_INIT { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 }
-#define CAMERA_INIT { 0, 2, -5, 0, 0, 1, 0, 1, 0, 45, 0, 0.01, 100 }
+#define CAMERA_INIT { 0, 2, -5, 0, 0, 1, 0, 1, 0, 45, 0, 0.01, 200 }
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -496,6 +496,7 @@ extern double cm_time_since_start();
 extern unsigned int cm_get_target_frame_rate();
 extern void cm_set_target_frame_rate(unsigned int t);
 extern unsigned int cm_frame_rate();
+extern double cm_frame_time();
 
 //endregion
 

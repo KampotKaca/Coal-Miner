@@ -310,7 +310,7 @@ unsigned int compile_shader(const char *shaderCode, int type)
     glShaderSource(shader, 1, &shaderCode, NULL);
 
     GLint success = 0;
-    glCompileShader(shader);
+	glCompileShader(shader);
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 
     if (success == GL_FALSE)

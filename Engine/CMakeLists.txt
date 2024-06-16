@@ -33,6 +33,10 @@ else()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
 endif()
 
+option(GLFW_BUILD_DOCS OFF)
+option(GLFW_BUILD_EXAMPLES OFF)
+option(GLFW_BUILD_TESTS OFF)
+
 add_subdirectory(external/cglm)
 add_subdirectory(external/glad)
 add_subdirectory(external/glfw)

@@ -73,3 +73,4 @@ double cm_time_since_start() { return TIME.timeSinceStart; }
 unsigned int cm_get_target_frame_rate() { return TIME.targetFrameRate; }
 void cm_set_target_frame_rate(unsigned int t) { TIME.targetFrameRate = t; }
 unsigned int cm_frame_rate() { return TIME.frameRate; }
+double cm_frame_time() { return TIME.lastFrameTime; }

@@ -1,7 +1,11 @@
-#version 430
+#version 430 core
 
-//3bits vIndex
-layout(location = 0) in uint vertex;
+//1bit zId
+//1bit yId
+//1bit xId
+//4bit BlockPositionZ
+//8bit BlockPositionY
+//4bit BlockPositionX
 
 layout(std140, binding = 32) uniform Camera
 {
@@ -12,13 +16,18 @@ layout(std140, binding = 32) uniform Camera
     vec3 cameraDirection;
 };
 
+layout(location = 0) in uint vertex;
+
 out vec4 out_color;
 
 void main()
 {
-//    vec3 position = vec3(float((vertex & uint(4)) >> 2), float((vertex & uint(2)) >> 1), float(vertex & uint(1)));
-    vec3 position = vec3(float((vertex & uint(4)) >> 2), float((vertex & uint(2)) >> 1), float(vertex & uint(1)));
+    uint vert = vertex;
+    ivec3 lPos = ivec3((vert & uint(4)) >> 2, (vert & uint(2)) >> 1, vert & uint(1));
+    vert = vert >> 3;
+    ivec3 blockPos = ivec3((vert & uint(0xf000)) >> 12, (vert & uint(0x0ff0)) >> 4, vert & uint(0x000f));
+    vert = vert >> 16;
 
-    out_color = vec4(position, 1.0);
-    gl_Position = cameraViewProjection * vec4(position, 1.0);
+    out_color = vec4(lPos, 1.0);
+    gl_Position = cameraViewProjection * vec4(blockPos + lPos, 1.0);
 }

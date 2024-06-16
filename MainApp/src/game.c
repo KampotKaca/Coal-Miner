@@ -21,6 +21,7 @@ void game_update()
 
 void game_render()
 {
+	int hex = 0xf;
 	cm_begin_mode_3d(get_camera());
 	
 	draw_grid();
