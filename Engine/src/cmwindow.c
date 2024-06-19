@@ -81,7 +81,7 @@ void create_window(unsigned int width, unsigned int height,
 	// Init state: Culling
 	// NOTE: All shapes/models triangles are drawn CCW
 	glCullFace(GL_BACK);                                    // Cull the back face (default)
-	glFrontFace(GL_CCW);                                    // Front face are defined counter clockwise (default)
+	glFrontFace(GL_CW);                                     // Front face are defined counter clockwise (default)
 	glEnable(GL_CULL_FACE);                                 // Enable backface culling
 
 	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);                   // Set clear color (black)
