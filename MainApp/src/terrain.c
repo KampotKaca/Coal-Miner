@@ -3,7 +3,7 @@
 #include "coal_miner_internal.h"
 #include <FastNoiseLite.h>
 
-#define TERRAIN_CHUNK_CUBE_COUNT TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_HEIGHT
+#define TERRAIN_CHUNK_CUBE_COUNT TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE
 
 typedef struct TerrainData
 {
@@ -15,8 +15,8 @@ typedef struct TerrainData
 typedef struct Chunk
 {
 	unsigned char cells[TERRAIN_CHUNK_CUBE_COUNT];
-	unsigned int vertices[TERRAIN_CHUNK_CUBE_COUNT * 12];
-	unsigned int indices[TERRAIN_CHUNK_CUBE_COUNT * 18];
+	unsigned int vertices[TERRAIN_CHUNK_CUBE_COUNT * 4];
+	unsigned int indices[TERRAIN_CHUNK_CUBE_COUNT * 6];
 	bool chunkChanged;
 }Chunk;
 
@@ -38,13 +38,13 @@ void load_terrain()
 	terrainData.xSeed = rand() % 10000000;
 	terrainData.zSeed = rand() % 10000000;
 	terrainData.chunkHorizontalSlice = TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE;
-	terrainData.chunkCubeCount = terrainData.chunkHorizontalSlice * TERRAIN_HEIGHT;
+	terrainData.chunkCubeCount = terrainData.chunkHorizontalSlice * TERRAIN_CHUNK_SIZE;
 	CreateChunkCells(&terrainChunk);
 	
 	unsigned int vCount = 0, iCount = 0;
 	CreateChunkVI(&terrainChunk, &vCount, &iCount);
 	CreateShader();
-	CreateVao(vCount, iCount);
+	CreateVao(iCount, vCount);
 }
 
 void update_terrain()
@@ -122,7 +122,7 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 	unsigned int indexSpace = sizeof(chunk->indices) / 4;
 	unsigned int vertexSpace = sizeof(chunk->vertices) / 4;
 	
-	for (unsigned int y = 0; y < TERRAIN_HEIGHT; y++)
+	for (unsigned int y = 0; y < TERRAIN_CHUNK_SIZE; y++)
 	{
 		for (unsigned int x = 0; x < TERRAIN_CHUNK_SIZE; x++)
 		{
@@ -143,33 +143,27 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 
 				//region define faces
 				//front
-//				temp = (z == TERRAIN_CHUNK_SIZE - 1 || chunk->cells[cubeId + 1] == 0);
-				temp = (z == TERRAIN_CHUNK_SIZE - 1);
+				temp = (z == TERRAIN_CHUNK_SIZE - 1 || chunk->cells[cubeId + 1] == 0);
 				faceMask |= temp << 5;
 
 				//back
-//				temp = (z == 0 || chunk->cells[cubeId - 1] == 0);
-				temp = (z == 0);
+				temp = (z == 0 || chunk->cells[cubeId - 1] == 0);
 				faceMask |= temp << 4;
 
 				//right
-//				temp = (x == TERRAIN_CHUNK_SIZE - 1 || chunk->cells[cubeId + TERRAIN_CHUNK_SIZE] == 0);
-				temp = (x == TERRAIN_CHUNK_SIZE - 1);
+				temp = (x == TERRAIN_CHUNK_SIZE - 1 || chunk->cells[cubeId + TERRAIN_CHUNK_SIZE] == 0);
 				faceMask |= temp << 3;
 
 				//left
-//				temp = (x == 0 || chunk->cells[cubeId - TERRAIN_CHUNK_SIZE] == 0);
-				temp = (x == 0);
+				temp = (x == 0 || chunk->cells[cubeId - TERRAIN_CHUNK_SIZE] == 0);
 				faceMask |= temp << 2;
 
 				//top
-//				temp = (y == TERRAIN_HEIGHT - 1 || chunk->cells[cubeId + terrainData.chunkHorizontalSlice] == 0);
-				temp = (y == TERRAIN_HEIGHT - 1);
+				temp = (y == TERRAIN_CHUNK_SIZE - 1 || chunk->cells[cubeId + terrainData.chunkHorizontalSlice] == 0);
 				faceMask |= temp << 1;
 
 				//bottom
-//				temp = (y == 0 || chunk->cells[cubeId - terrainData.chunkHorizontalSlice] == 0);
-				temp = (y == 0);
+				temp = (y == 0 || chunk->cells[cubeId - terrainData.chunkHorizontalSlice] == 0);
 				faceMask |= temp;
 				//endregion
 
@@ -186,8 +180,8 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 				  indexCount += 6
 				//endregion
 
-				unsigned int blockIndex = (x << 15) | (y << 7) | (z << 3);
-
+				unsigned int blockIndex = (x << 10) | (y << 5) | z;
+				blockIndex <<= 3;
 				//front face
 				if((faceMask & 0b100000) > 0)
 				{
@@ -221,8 +215,6 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 					vertCount += 4;
 				}
 
-				printf("x: %i, y: %i, z: %i, c: %i,\n", x, y, z, cubeId);
-
 				//left face
 				if((faceMask & 0b000100) > 0)
 				{
@@ -242,8 +234,6 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 					chunk->vertices[vertCount + 1] = blockIndex | 0b011;
 					chunk->vertices[vertCount + 2] = blockIndex | 0b111;
 					chunk->vertices[vertCount + 3] = blockIndex | 0b110;
-
-					printf("size: %i, id: %i\n", (int)sizeof(chunk->vertices)/4, vertCount);
 
 					vertCount += 4;
 				}
@@ -275,24 +265,21 @@ static void CreateChunkCells(Chunk* chunk)
 	fnl_state noise = fnlCreateState();
 	noise.noise_type = FNL_NOISE_PERLIN;
 
-	int minHeight = (TERRAIN_HEIGHT - TERRAIN_RANDOMNESS_AREA) / 2;
+	unsigned int minHeight = (TERRAIN_CHUNK_SIZE - TERRAIN_RANDOMNESS_AREA) / 2;
 
 	for (unsigned int x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
 	{
 		for (unsigned int z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
 		{
-//			float nVal = (fnlGetNoise2D(&noise, (float)(terrainData.xSeed + x), (float)(terrainData.zSeed + z)) + 1) * .5f;
+			float nVal = (fnlGetNoise2D(&noise, (float)(terrainData.xSeed + x), (float)(terrainData.zSeed + z)) + 1) * .5f;
 			unsigned int xzId = x * TERRAIN_CHUNK_SIZE + z;
-//			unsigned int till = (unsigned int)(minHeight + (int)(nVal * TERRAIN_RANDOMNESS_AREA));
-			
-//			for (unsigned int y = 0; y < till; ++y)
-//				chunk->cells[y * terrainData.chunkHorizontalSlice + xzId] = 1;
-//
-//			for (unsigned int y = till; y < TERRAIN_HEIGHT; ++y)
-//				chunk->cells[y * terrainData.chunkHorizontalSlice + xzId] = 0;
+			unsigned int till = (unsigned int)(minHeight + (unsigned int)(nVal * TERRAIN_RANDOMNESS_AREA));
 
-			for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
+			for (unsigned int y = 0; y < till; ++y)
 				chunk->cells[y * terrainData.chunkHorizontalSlice + xzId] = 1;
+
+			for (unsigned int y = till; y < TERRAIN_CHUNK_SIZE; ++y)
+				chunk->cells[y * terrainData.chunkHorizontalSlice + xzId] = 0;
 		}
 	}
 }
