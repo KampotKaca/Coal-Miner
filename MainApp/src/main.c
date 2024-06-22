@@ -5,8 +5,7 @@ int main(void)
 {
 	EngineData data;
 	memcpy(&data, &CM_DEFAULT_ENGINE_DATA, sizeof(EngineData));
-	char iconLoc[MAX_PATH_SIZE] = RES_PATH;
-	strcat_s(iconLoc, MAX_PATH_SIZE, "2d/app/icons");
+	Path iconLoc = TO_RES_PATH(iconLoc, "2d/app/icons");
 	data.iconLocation = iconLoc;
 
 	data.awakeCallback = game_awake;

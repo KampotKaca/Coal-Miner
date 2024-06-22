@@ -7,7 +7,7 @@ typedef struct Ubo
 {
 	bool isReady;
 	unsigned int id;
-	unsigned int blockId;
+	unsigned int bindingId;
 	unsigned int dataSize;
 	void* data;
 } Ubo;
@@ -263,12 +263,12 @@ Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode)
 	for (int i = 0; i < cmUboCount; ++i)
 	{
 		GLint bindingIndex;
-		glGetProgramResourceiv(shader.id, GL_UNIFORM_BLOCK, CM_UBOS[i].blockId, 1, properties, 1, NULL, &bindingIndex);
+		glGetProgramResourceiv(shader.id, GL_UNIFORM_BLOCK, CM_UBOS[i].bindingId, 1, properties, 1, NULL, &bindingIndex);
 
 		if(bindingIndex > 0)
 		{
 			glBindBuffer(GL_UNIFORM_BUFFER, CM_UBOS[i].id);
-			glUniformBlockBinding(shader.id, CM_UBOS[i].blockId, 0);
+			glUniformBlockBinding(shader.id, CM_UBOS[i].bindingId, 0);
 			glBindBufferBase(GL_UNIFORM_BUFFER, 0, CM_UBOS[i].id);
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		}
@@ -383,7 +383,30 @@ void unload_shader_program(unsigned int id)
 	glDeleteProgram(id);
 }
 
-bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data)
+Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, void* data, bool isStatic)
+{
+	Ssbo ssbo = {0};
+	ssbo.bindingId = bindingId;
+	ssbo.dataSize = dataSize;
+	ssbo.isStatic = isStatic;
+	ssbo.data = data;
+
+	glGenBuffers(1, &ssbo.id);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo.id);
+
+	if(ssbo.isStatic) glBufferData(GL_SHADER_STORAGE_BUFFER, ssbo.dataSize, ssbo.data, GL_STATIC_DRAW);
+	else glBufferData(GL_SHADER_STORAGE_BUFFER, ssbo.dataSize, ssbo.data, GL_DYNAMIC_DRAW);
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, ssbo.bindingId, ssbo.id); // Bind to binding point 0
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void cm_unload_ssbo(Ssbo ssbo)
+{
+	glDeleteBuffers(1, &ssbo.id);
+}
+
+bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, void* data)
 {
 	if(cmUboCount == MAX_NUM_UBOS)
 	{
@@ -394,7 +417,7 @@ bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data)
 	Ubo ubo = {};
 	ubo.dataSize = dataSize;
 	ubo.data = data;
-	ubo.blockId = blockId;
+	ubo.bindingId = bindingId;
 
 	glGenBuffers(1, &ubo.id);
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo.id);
@@ -568,6 +591,21 @@ extern void cm_draw_vao(Vao vao, DrawType drawType)
 	{
 		Ebo ebo = vao.vbo.ebo;
 		glDrawElements(drawType, (int)ebo.indexCount, ebo.type, 0);
+	}
+}
+
+void cm_draw_instanced_vao(Vao vao, DrawType drawType, unsigned int instanceCount)
+{
+	glBindVertexArray(vao.id);
+
+	if(vao.vbo.ebo.dataSize == 0)
+	{
+		glDrawArraysInstanced(drawType, 0, (int)vao.vbo.vertexCount, (int)instanceCount);
+	}
+	else
+	{
+		Ebo ebo = vao.vbo.ebo;
+		glDrawElementsInstanced(drawType, (int)ebo.indexCount, ebo.type, 0, (int)instanceCount);
 	}
 }
 

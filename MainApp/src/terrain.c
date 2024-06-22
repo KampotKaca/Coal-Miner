@@ -5,11 +5,17 @@
 
 #define TERRAIN_CHUNK_CUBE_COUNT TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE
 
+typedef struct VoxelBuffer
+{
+	unsigned int voxelFaces[TERRAIN_CHUNK_CUBE_COUNT];
+}VoxelBuffer;
+
 typedef struct TerrainData
 {
 	int xSeed, zSeed;
 	unsigned int chunkCubeCount;
 	unsigned int chunkHorizontalSlice;
+	unsigned int faceCount;
 }TerrainData;
 
 typedef struct Chunk
@@ -21,16 +27,17 @@ typedef struct Chunk
 }Chunk;
 
 Shader terrainShader;
-Vao terrainVao;
+Vao quadVao;
+Ssbo terrainSsbo;
 
 TerrainData terrainData = { 0 };
 Chunk terrainChunk;
+VoxelBuffer voxelBuffer;
 bool terrainIsWireMode;
 
 static void CreateShader();
-static void CreateVao(unsigned int indexCount, unsigned int vertexCount);
 static void CreateChunkCells(Chunk* chunk);
-static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCount);
+static unsigned int CreateChunkFaces(Chunk* chunk);
 
 //region Callback Functions
 void load_terrain()
@@ -39,12 +46,12 @@ void load_terrain()
 	terrainData.zSeed = rand() % 10000000;
 	terrainData.chunkHorizontalSlice = TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE;
 	terrainData.chunkCubeCount = terrainData.chunkHorizontalSlice * TERRAIN_CHUNK_SIZE;
+	CreateShader();
 	CreateChunkCells(&terrainChunk);
 	
-	unsigned int vCount = 0, iCount = 0;
-	CreateChunkVI(&terrainChunk, &vCount, &iCount);
-	CreateShader();
-	CreateVao(iCount, vCount);
+	terrainData.faceCount = CreateChunkFaces(&terrainChunk);
+	quadVao = cm_get_unit_quad();
+	terrainSsbo = cm_load_ssbo(64, sizeof(VoxelBuffer), &voxelBuffer, false);
 }
 
 void update_terrain()
@@ -56,20 +63,22 @@ void update_terrain()
 
 		terrainIsWireMode = !terrainIsWireMode;
 	}
+
+	printf("FrameTime: %f\n", cm_frame_time() * 1000);
 }
 
 void draw_terrain()
 {
 	cm_begin_shader_mode(terrainShader);
 
-	cm_draw_vao(terrainVao, CM_TRIANGLES);
-	
+	cm_draw_instanced_vao(quadVao, CM_TRIANGLES, terrainData.faceCount);
+
 	cm_end_shader_mode();
 }
 
 void dispose_terrain()
 {
-	cm_unload_vao(terrainVao);
+	cm_unload_ssbo(terrainSsbo);
 	cm_unload_shader(terrainShader);
 }
 //endregion
@@ -78,50 +87,16 @@ void dispose_terrain()
 
 static void CreateShader()
 {
-	char vsPath[MAX_PATH_SIZE] = RES_PATH;
-	strcat_s(vsPath, MAX_PATH_SIZE, "shaders/voxel_terrain.vert");
-	
-	char fsPath[MAX_PATH_SIZE] = RES_PATH;
-	strcat_s(fsPath, MAX_PATH_SIZE, "shaders/voxel_terrain.frag");
+	Path vsPath = TO_RES_PATH(vsPath, "shaders/voxel_terrain.vert");
+	Path fsPath = TO_RES_PATH(fsPath, "shaders/voxel_terrain.frag");
 
 	terrainShader = cm_load_shader(vsPath, fsPath);
 }
 
-static void CreateVao(unsigned int indexCount, unsigned int vertexCount)
+static unsigned int CreateChunkFaces(Chunk* chunk)
 {
-	VaoAttribute attributes[] =
-	{
-		{ 1, CM_UINT, false, 1 * sizeof(unsigned int) },
-//		{ 2, CM_FLOAT, false, 3 * sizeof(float) }
-	};
-	
-	Vbo vbo = { 0 };
-	vbo.id = 0;
-	vbo.isStatic = false;
-	vbo.data = terrainChunk.vertices;
-	vbo.vertexCount = vertexCount;
-	vbo.dataSize = sizeof(terrainChunk.vertices);
-	Ebo ebo = {0};
-	ebo.id = 0;
-	ebo.isStatic = false;
-	ebo.dataSize = sizeof(terrainChunk.indices);
-	ebo.data = terrainChunk.indices;
-	ebo.type = CM_UINT;
-	ebo.indexCount = indexCount;
-	vbo.ebo = ebo;
+	unsigned int faceCount = 0;
 
-	terrainVao = cm_load_vao(attributes, 1, vbo);
-}
-
-static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCount)
-{
-	unsigned int indexCount = 0;
-	unsigned int vertCount = 0;
-	unsigned int execCount = 0;
-
-	unsigned int indexSpace = sizeof(chunk->indices) / 4;
-	unsigned int vertexSpace = sizeof(chunk->vertices) / 4;
-	
 	for (unsigned int y = 0; y < TERRAIN_CHUNK_SIZE; y++)
 	{
 		for (unsigned int x = 0; x < TERRAIN_CHUNK_SIZE; x++)
@@ -130,13 +105,6 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 			{
 				unsigned int cubeId = y * terrainData.chunkHorizontalSlice + x * TERRAIN_CHUNK_SIZE + z;
 				if(chunk->cells[cubeId] == 0) continue;
-
-				if(indexSpace - indexCount < 36 || vertexSpace - vertCount < 8)
-				{
-					printf("Space is too low, terminating the execution!!! vFree: %i, iFree: %i",
-						   indexSpace - indexCount, vertexSpace - vertCount);
-					break;
-				}
 
 				unsigned int temp = 0;
 				unsigned char faceMask = 0;
@@ -169,83 +137,48 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 
 				if(faceMask == 0) continue;
 
-				//region definitions
-
-#define RECT_FACE chunk->indices[indexCount]     = vertCount + 0;\
-				  chunk->indices[indexCount + 1] = vertCount + 1;\
-				  chunk->indices[indexCount + 2] = vertCount + 2;\
-				  chunk->indices[indexCount + 3] = vertCount + 0;\
-				  chunk->indices[indexCount + 4] = vertCount + 2;\
-				  chunk->indices[indexCount + 5] = vertCount + 3;\
-				  indexCount += 6
-				//endregion
-
 				unsigned int blockIndex = (x << 10) | (y << 5) | z;
 				blockIndex <<= 3;
+
 				//front face
 				if((faceMask & 0b100000) > 0)
 				{
-					RECT_FACE;
-					chunk->vertices[vertCount]     = blockIndex | 0b001;
-					chunk->vertices[vertCount + 1] = blockIndex | 0b101;
-					chunk->vertices[vertCount + 2] = blockIndex | 0b111;
-					chunk->vertices[vertCount + 3] = blockIndex | 0b011;
-					vertCount += 4;
+					voxelBuffer.voxelFaces[faceCount] = blockIndex | 0;
+					faceCount++;
 				}
 
 				//back face
 				if((faceMask & 0b010000) > 0)
 				{
-					RECT_FACE;
-					chunk->vertices[vertCount]     = blockIndex | 0b000;
-					chunk->vertices[vertCount + 1] = blockIndex | 0b010;
-					chunk->vertices[vertCount + 2] = blockIndex | 0b110;
-					chunk->vertices[vertCount + 3] = blockIndex | 0b100;
-					vertCount += 4;
+					voxelBuffer.voxelFaces[faceCount] = blockIndex | 1;
+					faceCount++;
 				}
 
 				//right face
 				if((faceMask & 0b001000) > 0)
 				{
-					RECT_FACE;
-					chunk->vertices[vertCount]     = blockIndex | 0b100;
-					chunk->vertices[vertCount + 1] = blockIndex | 0b110;
-					chunk->vertices[vertCount + 2] = blockIndex | 0b111;
-					chunk->vertices[vertCount + 3] = blockIndex | 0b101;
-					vertCount += 4;
+					voxelBuffer.voxelFaces[faceCount] = blockIndex | 2;
+					faceCount++;
 				}
 
 				//left face
 				if((faceMask & 0b000100) > 0)
 				{
-					RECT_FACE;
-					chunk->vertices[vertCount]     = blockIndex | 0b001;
-					chunk->vertices[vertCount + 1] = blockIndex | 0b011;
-					chunk->vertices[vertCount + 2] = blockIndex | 0b010;
-					chunk->vertices[vertCount + 3] = blockIndex | 0b000;
-					vertCount += 4;
+					voxelBuffer.voxelFaces[faceCount] = blockIndex | 3;
+					faceCount++;
 				}
 
 				//top face
 				if((faceMask & 0b000010) > 0)
 				{
-					RECT_FACE;
-					chunk->vertices[vertCount]     = blockIndex | 0b010;
-					chunk->vertices[vertCount + 1] = blockIndex | 0b011;
-					chunk->vertices[vertCount + 2] = blockIndex | 0b111;
-					chunk->vertices[vertCount + 3] = blockIndex | 0b110;
-
-					vertCount += 4;
+					voxelBuffer.voxelFaces[faceCount] = blockIndex | 4;
+					faceCount++;
 				}
 
 				if((faceMask & 0b000001) > 0)
 				{
-					RECT_FACE;
-					chunk->vertices[vertCount]     = blockIndex | 0b001;
-					chunk->vertices[vertCount + 1] = blockIndex | 0b000;
-					chunk->vertices[vertCount + 2] = blockIndex | 0b100;
-					chunk->vertices[vertCount + 3] = blockIndex | 0b101;
-					vertCount += 4;
+					voxelBuffer.voxelFaces[faceCount] = blockIndex | 5;
+					faceCount++;
 				}
 			}
 		}
@@ -253,11 +186,7 @@ static void CreateChunkVI(Chunk* chunk, unsigned int* vCount, unsigned int* iCou
 
 #undef RECT_FACE
 
-	*vCount = vertCount;
-	*iCount = indexCount;
-	printf("allSpace: %i, vertices %i\n", vertexSpace, vertCount);
-	printf("allSpace: %i, indices %i\n", indexSpace, indexCount);
-	printf("exeCount: %i\n", execCount);
+	printf("allSpace: %i, faces %i\n", TERRAIN_CHUNK_CUBE_COUNT, faceCount);
 }
 
 static void CreateChunkCells(Chunk* chunk)
@@ -280,6 +209,9 @@ static void CreateChunkCells(Chunk* chunk)
 
 			for (unsigned int y = till; y < TERRAIN_CHUNK_SIZE; ++y)
 				chunk->cells[y * terrainData.chunkHorizontalSlice + xzId] = 0;
+
+//			for (unsigned int y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
+//				chunk->cells[y * terrainData.chunkHorizontalSlice + xzId] = x % 2 > 0 || y % 2 > 0 || z % 2 > 0;
 		}
 	}
 }

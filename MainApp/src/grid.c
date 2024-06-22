@@ -63,11 +63,8 @@ void dispose_grid()
 
 static void CreateShader()
 {
-	char vsPath[MAX_PATH_SIZE] = RES_PATH;
-	strcat_s(vsPath, MAX_PATH_SIZE, "shaders/grid.vert");
-	
-	char fsPath[MAX_PATH_SIZE] = RES_PATH;
-	strcat_s(fsPath, MAX_PATH_SIZE, "shaders/grid.frag");
+	Path vsPath = TO_RES_PATH(vsPath, "shaders/grid.vert");
+	Path fsPath = TO_RES_PATH(fsPath, "shaders/grid.frag");
 	
 	gridShader = cm_load_shader(vsPath, fsPath);
 }

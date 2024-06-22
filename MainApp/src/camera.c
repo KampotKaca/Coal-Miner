@@ -27,7 +27,7 @@ static void ThirdPersonCamera();
 
 void load_camera()
 {
-	camera.position[1] = 50;
+	camera.position[1] = 1;
 }
 
 void update_camera()

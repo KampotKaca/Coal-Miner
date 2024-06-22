@@ -6,6 +6,8 @@
 #define CM_REALLOC(ptr,sz) realloc(ptr, sz)
 #define CM_FREE(ptr) free(ptr)
 
+#define TO_RES_PATH(x, y) RES_PATH; strcat_s(x, MAX_PATH_SIZE, y)
+
 #define TRANSFORM_INIT { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 }
 #define CAMERA_INIT { 0, 2, -5, 0, 0, 1, 0, 1, 0, 45, 0, 0.01, 200 }
 
@@ -23,6 +25,8 @@
 #include <cglm/cglm.h>
 #include <cglm/call.h>
 #include <cglm/quat.h>
+
+typedef char Path[MAX_PATH_SIZE];
 
 //region Inputs
 // Keyboard keys (US keyboard layout)
@@ -331,7 +335,7 @@ typedef struct Ebo
 	unsigned int id;
 	unsigned int dataSize;
 	bool isStatic;
-	void* data;
+	const void* data;
 	unsigned int type;
 	unsigned int indexCount;
 }Ebo;
@@ -342,9 +346,18 @@ typedef struct Vbo
 	unsigned int dataSize;
 	unsigned int vertexCount;
 	bool isStatic;
-	void* data;
+	const void* data;
 	Ebo ebo;
 }Vbo;
+
+typedef struct Ssbo
+{
+	unsigned int id;
+	unsigned int bindingId;
+	unsigned int dataSize;
+	bool isStatic;
+	const void* data;
+}Ssbo;
 
 typedef struct VaoAttribute
 {
@@ -424,7 +437,9 @@ extern void cm_end_mode_3d();
 //endregion
 
 //region GL Buffers
-extern bool cm_load_ubo(unsigned int blockId, unsigned int dataSize, void* data);
+extern Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, void* data, bool isStatic);
+extern void cm_unload_ssbo(Ssbo ssbo);
+extern bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, void* data);
 extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo);
 extern void cm_unload_vao(Vao vao);
 
@@ -438,6 +453,11 @@ extern void cm_unload_ebo(Ebo ebo);
 extern void cm_reupload_ebo(Ebo* ebo, unsigned int dataSize, void* data, unsigned int indexCount);
 
 extern void cm_draw_vao(Vao vao, DrawType drawType);
+extern void cm_draw_instanced_vao(Vao vao, DrawType drawType, unsigned int instanceCount);
+//endregion
+
+//region Drawing
+extern Vao cm_get_unit_quad();
 //endregion
 
 //region Input Functions

@@ -28,7 +28,7 @@ int FillWithAppIcons(const char* filePath, Image* storeLocation)
 	{
 		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
 
-		char newPath[MAX_PATH_SIZE];
+		Path newPath;
 		snprintf(newPath, MAX_PATH_SIZE, "%s/%s", filePath, entry->d_name);
 
 		storeLocation[imageId] = cm_load_image(newPath);
