@@ -4,14 +4,16 @@
 
 typedef struct GridData
 {
+	Shader gridShader;
+	Vao gridVao;
+	int u_axis_offsetId, u_axis_sizeId, u_colorId;
+	
 	unsigned int vertices[((GRID_SIZE + 1) + (GRID_SIZE + 1)) * 2];
 }GridData;
 
 static void CreateShader();
 static void CreateVao();
 
-Shader gridShader;
-Vao gridVao;
 GridData gridData;
 
 void load_grid()
@@ -45,20 +47,21 @@ void load_grid()
 
 void draw_grid()
 {
-	cm_begin_shader_mode(gridShader);
+	cm_begin_shader_mode(gridData.gridShader);
 
-	cm_set_shader_uniform_f(gridShader, "u_axis_offset", -GRID_SIZE * 0.5f);
-	cm_set_shader_uniform_f(gridShader, "u_axis_size", GRID_AXIS_SIZE);
-	cm_set_shader_uniform_vec4(gridShader, "u_color", GRID_COLOR);
-	cm_draw_vao(gridVao, CM_LINES);
+	cm_set_uniform_f(gridData.u_axis_offsetId, -GRID_SIZE * 0.5f);
+	cm_set_uniform_f(gridData.u_axis_sizeId, GRID_AXIS_SIZE);
+	cm_set_uniform_vec4(gridData.u_colorId, GRID_COLOR);
+	
+	cm_draw_vao(gridData.gridVao, CM_LINES);
 
 	cm_end_shader_mode();
 }
 
 void dispose_grid()
 {
-	cm_unload_vao(gridVao);
-	cm_unload_shader(gridShader);
+	cm_unload_vao(gridData.gridVao);
+	cm_unload_shader(gridData.gridShader);
 }
 
 static void CreateShader()
@@ -66,7 +69,10 @@ static void CreateShader()
 	Path vsPath = TO_RES_PATH(vsPath, "shaders/grid.vert");
 	Path fsPath = TO_RES_PATH(fsPath, "shaders/grid.frag");
 	
-	gridShader = cm_load_shader(vsPath, fsPath);
+	gridData.gridShader = cm_load_shader(vsPath, fsPath);
+	gridData.u_axis_offsetId = cm_get_uniform_location(gridData.gridShader, "u_axis_offset");
+	gridData.u_axis_sizeId = cm_get_uniform_location(gridData.gridShader, "u_axis_size");
+	gridData.u_colorId = cm_get_uniform_location(gridData.gridShader, "u_color");
 }
 
 static void CreateVao()
@@ -85,5 +91,5 @@ static void CreateVao()
 	Ebo ebo = {0};
 	vbo.ebo = ebo;
 	
-	gridVao = cm_load_vao(attributes, 1, vbo);
+	gridData.gridVao = cm_load_vao(attributes, 1, vbo);
 }

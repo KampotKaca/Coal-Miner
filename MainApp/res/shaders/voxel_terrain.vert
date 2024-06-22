@@ -23,6 +23,23 @@ layout(std430, binding = 64) buffer VoxelBuffer
 //2bit Id
 layout(location = 0) in uint vertex;
 
+struct TerrainData
+{
+    uint chunkId;
+    uvec3 chunk;
+    uint chunkSize;
+    uint chunkBlockCount;
+
+    uint verticalSize;
+    uint viewRange;
+};
+
+//ChunkId
+//ChunkSize
+//VerticalSize
+//ViewRange
+uniform TerrainData u_TerrainData;
+
 out vec4 out_color;
 
 void main()
@@ -31,7 +48,7 @@ void main()
     ivec2 lPos = ivec2((vert & 2u) >> 1, vert & 1u);
     vert = vert >> 2;
 
-    uint face = voxelFaces[gl_InstanceID];
+    uint face = voxelFaces[u_TerrainData.chunkId * u_TerrainData.chunkBlockCount + gl_InstanceID];
     ivec3 vertexPos;
 
     switch(face & 7u)
@@ -56,10 +73,9 @@ void main()
         break;
     }
     face = face >> 3;
-
     ivec3 blockPos = ivec3((face & 31744u) >> 10, (face & 992u) >> 5, face & 31u);
     face = face >> 15;
 
     out_color = vec4(vertexPos, 1.0);
-    gl_Position = cameraViewProjection * vec4(blockPos + vertexPos, 1.0);
+    gl_Position = cameraViewProjection * vec4(u_TerrainData.chunk * 32 + blockPos + vertexPos, 1.0);
 }

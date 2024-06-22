@@ -383,7 +383,7 @@ void unload_shader_program(unsigned int id)
 	glDeleteProgram(id);
 }
 
-Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, void* data, bool isStatic)
+Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, const void* data, bool isStatic)
 {
 	Ssbo ssbo = {0};
 	ssbo.bindingId = bindingId;
@@ -406,7 +406,7 @@ void cm_unload_ssbo(Ssbo ssbo)
 	glDeleteBuffers(1, &ssbo.id);
 }
 
-bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, void* data)
+bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, const void* data)
 {
 	if(cmUboCount == MAX_NUM_UBOS)
 	{
@@ -501,7 +501,7 @@ void cm_unload_vao(Vao vao)
 	CM_FREE(vao.attributes);
 }
 
-Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, void* data, bool isStatic, Ebo ebo)
+Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, const void* data, bool isStatic, Ebo ebo)
 {
 	Vbo vbo = { 0 };
 	vbo.ebo = (Ebo){ 0 };
@@ -527,7 +527,7 @@ void cm_unload_vbo(Vbo vbo)
 	glDeleteBuffers(1, &vbo.id);
 }
 
-void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, void* data)
+void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, const void* data)
 {
 	glBindBuffer(GL_ARRAY_BUFFER, vbo->id);
 	vbo->isStatic = false;
@@ -545,7 +545,7 @@ void cm_reupload_vbo_partial(Vbo* vbo, unsigned int dataOffset, unsigned int upl
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-Ebo cm_load_ebo(unsigned int dataSize, void* data, bool isStatic,
+Ebo cm_load_ebo(unsigned int dataSize, const void* data, bool isStatic,
                 unsigned int type, unsigned int indexCount)
 {
 	Ebo ebo = { 0 };
@@ -568,7 +568,7 @@ void cm_unload_ebo(Ebo ebo)
 	glDeleteBuffers(1, &ebo.id);
 }
 
-void cm_reupload_ebo(Ebo* ebo, unsigned int dataSize, void* data, unsigned int indexCount)
+void cm_reupload_ebo(Ebo* ebo, unsigned int dataSize, const void* data, unsigned int indexCount)
 {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo->id);
 	ebo->isStatic = false;
@@ -619,29 +619,30 @@ void cm_end_shader_mode()
 	glUseProgram(0);
 }
 
-void cm_set_shader_uniform_m4x4(Shader shader, const char* name, float* m)
-{
-	int location = glGetUniformLocation(shader.id, name);
-	glUniformMatrix4fv(location, 1, GL_FALSE, m);
-}
+int cm_get_uniform_location(Shader shader, const char* name) { return glGetUniformLocation(shader.id, name); }
 
-extern void cm_set_shader_uniform_vec4(Shader shader, const char* name, float* m)
-{
-	int location = glGetUniformLocation(shader.id, name);
-	glUniform4f(location, m[0], m[1], m[2], m[3]);
-}
+void cm_set_uniform_m4x4(int id, float* m) { glUniformMatrix4fv(id, 1, GL_FALSE, m); }
 
-extern void cm_set_shader_uniform_f(Shader shader, const char* name, float f)
-{
-	int location = glGetUniformLocation(shader.id, name);
-	glUniform1f(location, f);
-}
+void cm_set_uniform_vec4(int id, float* m) { glUniform4f(id, m[0], m[1], m[2], m[3]); }
+void cm_set_uniform_ivec4(int id, int* m) { glUniform4i(id, m[0], m[1], m[2], m[3]); }
+void cm_set_uniform_uvec4(int id, unsigned int* m) { glUniform4ui(id, m[0], m[1], m[2], m[3]); }
 
-void cm_set_texture(Shader shader, const char* name, unsigned int texId, unsigned char bindingPoint)
+void cm_set_uniform_vec3(int id, float* m) { glUniform3f(id, m[0], m[1], m[2]); }
+void cm_set_uniform_ivec3(int id, int* m) { glUniform3i(id, m[0], m[1], m[2]); }
+void cm_set_uniform_uvec3(int id, unsigned int* m) { glUniform3ui(id, m[0], m[1], m[2]); }
+
+void cm_set_uniform_vec2(int id, float* m) { glUniform2f(id, m[0], m[1]); }
+void cm_set_uniform_ivec2(int id, int* m) { glUniform2i(id, m[0], m[1]); }
+void cm_set_uniform_uvec2(int id, unsigned int* m) { glUniform2ui(id, m[0], m[1]); }
+
+void cm_set_uniform_f(int id, float f) { glUniform1f(id, f); }
+void cm_set_uniform_i(int id, int f) { glUniform1i(id, f); }
+void cm_set_uniform_u(int id, unsigned int f) { glUniform1ui(id, f); }
+
+void cm_set_texture(int id, unsigned int texId, unsigned char bindingPoint)
 {
-	int location = glGetUniformLocation(shader.id, name);
 	glBindTexture(GL_TEXTURE0 + bindingPoint, texId);
-	glUniform1i(location, GL_TEXTURE0 + bindingPoint);
+	glUniform1i(id, GL_TEXTURE0 + bindingPoint);
 }
 
 void cm_enable_color_blend(void) { glEnable(GL_BLEND); }

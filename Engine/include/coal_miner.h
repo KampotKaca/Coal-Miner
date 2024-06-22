@@ -425,10 +425,27 @@ extern void cm_unload_shader(Shader shader);
 extern void cm_begin_shader_mode(Shader shader);
 extern void cm_end_shader_mode();
 
-extern void cm_set_shader_uniform_m4x4(Shader shader, const char* name, float* m);
-extern void cm_set_shader_uniform_vec4(Shader shader, const char* name, float* m);
-extern void cm_set_shader_uniform_f(Shader shader, const char* name, float f);
-extern void cm_set_texture(Shader shader, const char* name, unsigned int texId, unsigned char bindingPoint);
+extern int cm_get_uniform_location(Shader shader, const char* name);
+
+extern void cm_set_uniform_m4x4(int id, float* m);
+
+extern void cm_set_uniform_vec4(int id, float* m);
+extern void cm_set_uniform_ivec4(int id, int* m);
+extern void cm_set_uniform_uvec4(int id, unsigned int* m);
+
+extern void cm_set_uniform_vec3(int id, float* m);
+extern void cm_set_uniform_ivec3(int id, int* m);
+extern void cm_set_uniform_uvec3(int id, unsigned int* m);
+
+extern void cm_set_uniform_vec2(int id, float* m);
+extern void cm_set_uniform_ivec2(int id, int* m);
+extern void cm_set_uniform_uvec2(int id, unsigned int* m);
+
+extern void cm_set_uniform_f(int id, float f);
+extern void cm_set_uniform_i(int id, int f);
+extern void cm_set_uniform_u(int id, unsigned int f);
+
+extern void cm_set_texture(int id, unsigned int texId, unsigned char bindingPoint);
 //endregion
 
 //region Camera
@@ -437,20 +454,20 @@ extern void cm_end_mode_3d();
 //endregion
 
 //region GL Buffers
-extern Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, void* data, bool isStatic);
+extern Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, const void* data, bool isStatic);
 extern void cm_unload_ssbo(Ssbo ssbo);
-extern bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, void* data);
+extern bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, const void* data);
 extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo);
 extern void cm_unload_vao(Vao vao);
 
-extern Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, void* data, bool isStatic, Ebo ebo);
+extern Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, const void* data, bool isStatic, Ebo ebo);
 extern void cm_unload_vbo(Vbo vbo);
-extern void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, void* data);
+extern void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, const void* data);
 extern void cm_reupload_vbo_partial(Vbo* vbo, unsigned int dataOffset, unsigned int uploadSize);
-extern Ebo cm_load_ebo(unsigned int dataSize, void* data, bool isStatic,
+extern Ebo cm_load_ebo(unsigned int dataSize, const void* data, bool isStatic,
 					   unsigned int type, unsigned int indexCount);
 extern void cm_unload_ebo(Ebo ebo);
-extern void cm_reupload_ebo(Ebo* ebo, unsigned int dataSize, void* data, unsigned int indexCount);
+extern void cm_reupload_ebo(Ebo* ebo, unsigned int dataSize, const void* data, unsigned int indexCount);
 
 extern void cm_draw_vao(Vao vao, DrawType drawType);
 extern void cm_draw_instanced_vao(Vao vao, DrawType drawType, unsigned int instanceCount);
