@@ -11,6 +11,6 @@
 #define GRID_COLOR ((vec4){ 1, 1, 1, 0.3 })
 
 #define TERRAIN_CHUNK_SIZE 32
-#define TERRAIN_VIEW_RANGE 2
-#define TERRAIN_HEIGHT 1
+#define TERRAIN_VIEW_RANGE 8
+#define TERRAIN_HEIGHT 4
 #endif //CONFIG_H

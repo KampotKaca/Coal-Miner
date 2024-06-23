@@ -19,17 +19,14 @@ typedef struct
 typedef struct {
 	unsigned int chunkId;
 	unsigned int chunk[3];
-	unsigned int chunkSize;
-	unsigned int chunkBlockCount;
-	unsigned int verticalSize;
-	unsigned int viewRange;
-} TerrainData;
+} UniformData;
 
 typedef struct
 {
-	int xSeed, ySeed, zSeed;
-	int u_TerrainDataId;
-	
+	unsigned int xSeed, ySeed, zSeed;
+	int u_chunkId;
+	int u_chunkIndex;
+
 	Shader terrainShader;
 	Vao quadVao;
 	Ssbo terrainSsbo;
@@ -46,7 +43,7 @@ bool terrainIsWireMode;
 static void CreateShader();
 static void CreateChunkCells(unsigned int xChunk, unsigned int yChunk, unsigned int zChunk);
 static void CreateChunkFaces(unsigned int xChunk, unsigned int yChunk, unsigned int zChunk);
-static void PassTerrainDataToShader(TerrainData* data);
+static void PassTerrainDataToShader(UniformData* data);
 static unsigned int GetChunkId(unsigned int x, unsigned int y, unsigned int z);
 
 //region Callback Functions
@@ -54,9 +51,9 @@ void load_terrain()
 {
 	CreateShader();
 	
-	voxelTerrain.xSeed = rand() % 10000000;
-	voxelTerrain.ySeed = rand() % 10000000;
-	voxelTerrain.zSeed = rand() % 10000000;
+	voxelTerrain.xSeed = rand() % 1000000u;
+	voxelTerrain.ySeed = rand() % 1000000u;
+	voxelTerrain.zSeed = rand() % 1000000u;
 	
 	for (int i = 0; i < TERRAIN_CHUNK_COUNT; ++i) voxelTerrain.chunksChanged[i] = true;
 	
@@ -90,12 +87,8 @@ void update_terrain()
 void draw_terrain()
 {
 	cm_begin_shader_mode(voxelTerrain.terrainShader);
-	TerrainData data = {0};
-	data.chunkSize = TERRAIN_CHUNK_SIZE;
-	data.chunkBlockCount = TERRAIN_CHUNK_CUBE_COUNT;
-	data.verticalSize = TERRAIN_HEIGHT;
-	data.viewRange = TERRAIN_VIEW_RANGE;
-	
+	UniformData data = {0};
+
 	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
 	{
 		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
@@ -106,7 +99,7 @@ void draw_terrain()
 				data.chunk[1] = y;
 				data.chunk[2] = z;
 				data.chunkId = GetChunkId(x, y, z);
-				
+
 				if(voxelTerrain.faceCounts[data.chunkId] > 0)
 				{
 					PassTerrainDataToShader(&data);
@@ -134,18 +127,19 @@ static void CreateShader()
 	Path fsPath = TO_RES_PATH(fsPath, "shaders/voxel_terrain.frag");
 	
 	voxelTerrain.terrainShader = cm_load_shader(vsPath, fsPath);
-	voxelTerrain.u_TerrainDataId = cm_get_uniform_location(voxelTerrain.terrainShader, "u_TerrainData");
+	voxelTerrain.u_chunkId = cm_get_uniform_location(voxelTerrain.terrainShader, "u_chunkId");
+	voxelTerrain.u_chunkIndex = cm_get_uniform_location(voxelTerrain.terrainShader, "u_chunkIndex");
 }
 
 static void CreateChunkFaces(unsigned int xChunk, unsigned int yChunk, unsigned int zChunk)
 {
 	unsigned int chunkId = GetChunkId(xChunk, yChunk, zChunk);
 	if(!voxelTerrain.chunksChanged[chunkId]) return;
-	
+
 	unsigned int xStart = xChunk * TERRAIN_CHUNK_SIZE, xEnd = xStart + TERRAIN_CHUNK_SIZE;
 	unsigned int yStart = yChunk * TERRAIN_CHUNK_SIZE, yEnd = yStart + TERRAIN_CHUNK_SIZE;
 	unsigned int zStart = zChunk * TERRAIN_CHUNK_SIZE, zEnd = zStart + TERRAIN_CHUNK_SIZE;
-	
+
 	unsigned int faceCount = 0;
 	unsigned int faceOffset = chunkId * TERRAIN_CHUNK_CUBE_COUNT;
 	
@@ -168,6 +162,8 @@ static void CreateChunkFaces(unsigned int xChunk, unsigned int yChunk, unsigned 
 				faceMask |= (y == FULL_VERTICAL_SIZE - 1 || voxelTerrain.cells[cubeId + FULL_HORIZONTAL_SLICE] == 0) << 1; //top
 				faceMask |= (y == 0 || voxelTerrain.cells[cubeId - FULL_HORIZONTAL_SLICE] == 0);                           //bottom
 				//endregion
+
+//				printf("x: %i, y: %i, z: %i\n", x, y, z);
 
 				if(faceMask == 0) continue;
 
@@ -243,31 +239,25 @@ static void CreateChunkCells(unsigned int xChunk, unsigned int yChunk, unsigned 
 			for (unsigned int z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
 			{
 				unsigned int zId = zChunk * TERRAIN_CHUNK_SIZE + z;
-//				float nVal = fnlGetNoise3D(&noise, (float)(voxelTerrain.xSeed + xId),
-//							                       (float)(voxelTerrain.ySeed + yId),
-//									               (float)(voxelTerrain.zSeed + zId));
-//
-//				if(nVal >= .5f)
-//				{
-//
-//				}
-				
-				unsigned int id = chunkId * TERRAIN_CHUNK_CUBE_COUNT +
-				                  y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z;
-				voxelTerrain.cells[id] = 1;
+				float nVal = fnlGetNoise3D(&noise, (float)(voxelTerrain.xSeed + xId) * 10.6f,
+							                       (float)(voxelTerrain.ySeed + yId) * 10.6f,
+									               (float)(voxelTerrain.zSeed + zId) * 10.6f);
+				nVal = (nVal + 1) * .5f;
+
+				if(nVal >= .4f)
+				{
+					unsigned int id = yId * FULL_HORIZONTAL_SLICE + xId * FULL_AXIS_SIZE + zId;
+					voxelTerrain.cells[id] = 1;
+				}
 			}
 		}
 	}
 }
 
-static void PassTerrainDataToShader(TerrainData* data)
+static void PassTerrainDataToShader(UniformData * data)
 {
-	cm_set_uniform_u(voxelTerrain.u_TerrainDataId + 0, data->chunkId);
-	cm_set_uniform_uvec3(voxelTerrain.u_TerrainDataId + 1, data->chunk);
-	cm_set_uniform_u(voxelTerrain.u_TerrainDataId + 4, data->chunkSize);
-	cm_set_uniform_u(voxelTerrain.u_TerrainDataId + 5, data->chunkBlockCount);
-	cm_set_uniform_u(voxelTerrain.u_TerrainDataId + 6, data->verticalSize);
-	cm_set_uniform_u(voxelTerrain.u_TerrainDataId + 7, data->viewRange);
+	cm_set_uniform_u(voxelTerrain.u_chunkId, data->chunkId);
+	cm_set_uniform_uvec3(voxelTerrain.u_chunkIndex, data->chunk);
 }
 
 static unsigned int GetChunkId(unsigned int x, unsigned int y, unsigned int z)
