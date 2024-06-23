@@ -27,12 +27,14 @@ typedef struct
 	int u_chunkId;
 	int u_chunkIndex;
 
+	fnl_state noise;
 	Shader terrainShader;
 	Vao quadVao;
 	Ssbo terrainSsbo;
 	VoxelBuffer voxelBuffer;
 	
 	unsigned char cells[TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT];
+	unsigned char heightMap[FULL_HORIZONTAL_SLICE];
 	bool chunksChanged[TERRAIN_CHUNK_COUNT];
 	unsigned short faceCounts[TERRAIN_CHUNK_COUNT];
 }VoxelTerrain;
@@ -41,7 +43,8 @@ VoxelTerrain voxelTerrain = { 0 };
 bool terrainIsWireMode;
 
 static void CreateShader();
-static void CreateChunkCells(unsigned int xChunk, unsigned int yChunk, unsigned int zChunk);
+static void CreateChunk(const unsigned int chunkId[3], const unsigned int destination[3]);
+static void GenerateHeightMap(const unsigned int chunkId[2], const unsigned int destination[2]);
 static void CreateChunkFaces(unsigned int xChunk, unsigned int yChunk, unsigned int zChunk);
 static void PassTerrainDataToShader(UniformData* data);
 static unsigned int GetChunkId(unsigned int x, unsigned int y, unsigned int z);
@@ -50,17 +53,23 @@ static unsigned int GetChunkId(unsigned int x, unsigned int y, unsigned int z);
 void load_terrain()
 {
 	CreateShader();
+	voxelTerrain.noise = fnlCreateState();
+	voxelTerrain.noise.noise_type = FNL_NOISE_PERLIN;
 	
 	voxelTerrain.xSeed = rand() % 1000000u;
 	voxelTerrain.ySeed = rand() % 1000000u;
 	voxelTerrain.zSeed = rand() % 1000000u;
 	
 	for (int i = 0; i < TERRAIN_CHUNK_COUNT; ++i) voxelTerrain.chunksChanged[i] = true;
-	
+
+	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
+		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
+			GenerateHeightMap((unsigned int[]){x, y}, (unsigned int[]){x, y});
+
 	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
 		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 			for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
-				CreateChunkCells(x, y, z);
+				CreateChunk((unsigned int[]){x, y, z}, (unsigned int[]){x, y, z});
 	
 	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
 		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
@@ -218,14 +227,11 @@ static void CreateChunkFaces(unsigned int xChunk, unsigned int yChunk, unsigned 
 	voxelTerrain.faceCounts[chunkId] = faceCount;
 }
 
-static void CreateChunkCells(unsigned int xChunk, unsigned int yChunk, unsigned int zChunk)
+static void CreateChunk(const unsigned int chunkId[3], const unsigned int destination[3])
 {
-	fnl_state noise = fnlCreateState();
-	noise.noise_type = FNL_NOISE_PERLIN;
-	
-	unsigned int xStart = xChunk * TERRAIN_CHUNK_SIZE, xEnd = xStart + TERRAIN_CHUNK_SIZE;
-	unsigned int yStart = yChunk * TERRAIN_CHUNK_SIZE, yEnd = yStart + TERRAIN_CHUNK_SIZE;
-	unsigned int zStart = zChunk * TERRAIN_CHUNK_SIZE, zEnd = zStart + TERRAIN_CHUNK_SIZE;
+	unsigned int xStart = destination[0] * TERRAIN_CHUNK_SIZE, xEnd = xStart + TERRAIN_CHUNK_SIZE;
+	unsigned int yStart = destination[1] * TERRAIN_CHUNK_SIZE, yEnd = yStart + TERRAIN_CHUNK_SIZE;
+	unsigned int zStart = destination[2] * TERRAIN_CHUNK_SIZE, zEnd = zStart + TERRAIN_CHUNK_SIZE;
 	
 	for (unsigned int y = yStart; y < yEnd; ++y)
 	{
@@ -235,35 +241,51 @@ static void CreateChunkCells(unsigned int xChunk, unsigned int yChunk, unsigned 
 			memset(&voxelTerrain.cells[xyId + zStart], 0, TERRAIN_CHUNK_SIZE);
 		}
 	}
-	
-	if(yChunk < TERRAIN_MAX_SOLID_VERTICAL_CHUNKS)
+
+	for (unsigned int x = xStart; x < xEnd; ++x)
 	{
-		for (unsigned int x = xStart; x < xEnd; ++x)
+		for (unsigned int z = zStart; z < zEnd; ++z)
 		{
-			for (unsigned int z = zStart; z < zEnd; ++z)
+			unsigned int xzId = x * FULL_AXIS_SIZE + z;
+			unsigned int yLimit = glm_imin((int)yEnd, voxelTerrain.heightMap[x * FULL_AXIS_SIZE + z]);
+
+			for (unsigned int y = yStart; y < yLimit; ++y)
 			{
-				unsigned int xzId = x * FULL_AXIS_SIZE + z;
-//				float val2D = fnlGetNoise2D(&noise,
-//											(float)(voxelTerrain.xSeed + x) * TERRAIN_2D_PERLIN_STEP,
-//											(float)(voxelTerrain.zSeed + z) * TERRAIN_2D_PERLIN_STEP);
-//				val2D = (val2D + 1) * .5f;
-				
-				for (unsigned int y = yStart; y < yEnd; ++y)
+				float val3D = fnlGetNoise3D
+					(&voxelTerrain.noise,
+					 (float)(voxelTerrain.xSeed + x) * TERRAIN_3D_PERLIN_STEP,
+					 (float)(voxelTerrain.ySeed + y) * TERRAIN_3D_PERLIN_STEP,
+					 (float)(voxelTerrain.zSeed + z) * TERRAIN_3D_PERLIN_STEP);
+				val3D = (val3D + 1) * .5f;
+
+				if(val3D >= .4f)
 				{
-					float val3D = fnlGetNoise3D
-							(&noise,
-							 (float)(voxelTerrain.xSeed + x) * TERRAIN_3D_PERLIN_STEP,
-							 (float)(voxelTerrain.ySeed + y) * TERRAIN_3D_PERLIN_STEP,
-							 (float)(voxelTerrain.zSeed + z) * TERRAIN_3D_PERLIN_STEP);
-					val3D = (val3D + 1) * .5f;
-					
-					if(val3D >= .4f)
-					{
-						unsigned int id = y * FULL_HORIZONTAL_SLICE + xzId;
-						voxelTerrain.cells[id] = 1;
-					}
+					unsigned int id = y * FULL_HORIZONTAL_SLICE + xzId;
+					voxelTerrain.cells[id] = 1;
 				}
 			}
+		}
+	}
+}
+
+static void GenerateHeightMap(const unsigned int chunkId[2], const unsigned int destination[2])
+{
+	unsigned int xStart = destination[0] * TERRAIN_CHUNK_SIZE, xEnd = xStart + TERRAIN_CHUNK_SIZE;
+	unsigned int zStart = destination[1] * TERRAIN_CHUNK_SIZE, zEnd = zStart + TERRAIN_CHUNK_SIZE;
+
+	for (unsigned int x = xStart; x < xEnd; ++x)
+	{
+		unsigned int px = chunkId[0] * TERRAIN_CHUNK_SIZE + x;
+		for (unsigned int z = zStart; z < zEnd; ++z)
+		{
+			unsigned int pz = chunkId[1] * TERRAIN_CHUNK_SIZE + z;
+
+			float val2D = fnlGetNoise2D(&voxelTerrain.noise,
+											(float)(voxelTerrain.xSeed + px) * TERRAIN_2D_PERLIN_STEP,
+											(float)(voxelTerrain.zSeed + pz) * TERRAIN_2D_PERLIN_STEP);
+			val2D = (val2D + 1) * .5f;
+			unsigned char height = (unsigned char)(val2D * 127);
+			voxelTerrain.heightMap[x * FULL_AXIS_SIZE + z] = height;
 		}
 	}
 }
