@@ -163,8 +163,6 @@ static void CreateChunkFaces(unsigned int xChunk, unsigned int yChunk, unsigned 
 				faceMask |= (y == 0 || voxelTerrain.cells[cubeId - FULL_HORIZONTAL_SLICE] == 0);                           //bottom
 				//endregion
 
-//				printf("x: %i, y: %i, z: %i\n", x, y, z);
-
 				if(faceMask == 0) continue;
 
 				unsigned int blockIndex = ((x % TERRAIN_CHUNK_SIZE) << 10) |
@@ -224,30 +222,46 @@ static void CreateChunkCells(unsigned int xChunk, unsigned int yChunk, unsigned 
 {
 	fnl_state noise = fnlCreateState();
 	noise.noise_type = FNL_NOISE_PERLIN;
-
-	unsigned int chunkId = yChunk * TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE +
-						   xChunk * TERRAIN_VIEW_RANGE + zChunk;
 	
-	for (unsigned int y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
+	unsigned int xStart = xChunk * TERRAIN_CHUNK_SIZE, xEnd = xStart + TERRAIN_CHUNK_SIZE;
+	unsigned int yStart = yChunk * TERRAIN_CHUNK_SIZE, yEnd = yStart + TERRAIN_CHUNK_SIZE;
+	unsigned int zStart = zChunk * TERRAIN_CHUNK_SIZE, zEnd = zStart + TERRAIN_CHUNK_SIZE;
+	
+	for (unsigned int y = yStart; y < yEnd; ++y)
 	{
-		unsigned int yId = yChunk * TERRAIN_CHUNK_SIZE + y;
-		
-		for (unsigned int x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
+		for (unsigned int x = xStart; x < xEnd; ++x)
 		{
-			unsigned int xId = xChunk * TERRAIN_CHUNK_SIZE + x;
-			
-			for (unsigned int z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
+			unsigned int xyId = y * FULL_HORIZONTAL_SLICE + x * FULL_AXIS_SIZE;
+			memset(&voxelTerrain.cells[xyId + zStart], 0, TERRAIN_CHUNK_SIZE);
+		}
+	}
+	
+	if(yChunk < TERRAIN_MAX_SOLID_VERTICAL_CHUNKS)
+	{
+		for (unsigned int x = xStart; x < xEnd; ++x)
+		{
+			for (unsigned int z = zStart; z < zEnd; ++z)
 			{
-				unsigned int zId = zChunk * TERRAIN_CHUNK_SIZE + z;
-				float nVal = fnlGetNoise3D(&noise, (float)(voxelTerrain.xSeed + xId) * 10.6f,
-							                       (float)(voxelTerrain.ySeed + yId) * 10.6f,
-									               (float)(voxelTerrain.zSeed + zId) * 10.6f);
-				nVal = (nVal + 1) * .5f;
-
-				if(nVal >= .4f)
+				unsigned int xzId = x * FULL_AXIS_SIZE + z;
+//				float val2D = fnlGetNoise2D(&noise,
+//											(float)(voxelTerrain.xSeed + x) * TERRAIN_2D_PERLIN_STEP,
+//											(float)(voxelTerrain.zSeed + z) * TERRAIN_2D_PERLIN_STEP);
+//				val2D = (val2D + 1) * .5f;
+				
+				for (unsigned int y = yStart; y < yEnd; ++y)
 				{
-					unsigned int id = yId * FULL_HORIZONTAL_SLICE + xId * FULL_AXIS_SIZE + zId;
-					voxelTerrain.cells[id] = 1;
+					float val3D = fnlGetNoise3D
+							(&noise,
+							 (float)(voxelTerrain.xSeed + x) * TERRAIN_3D_PERLIN_STEP,
+							 (float)(voxelTerrain.ySeed + y) * TERRAIN_3D_PERLIN_STEP,
+							 (float)(voxelTerrain.zSeed + z) * TERRAIN_3D_PERLIN_STEP);
+					val3D = (val3D + 1) * .5f;
+					
+					if(val3D >= .4f)
+					{
+						unsigned int id = y * FULL_HORIZONTAL_SLICE + xzId;
+						voxelTerrain.cells[id] = 1;
+					}
 				}
 			}
 		}
