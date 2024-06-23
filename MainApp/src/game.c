@@ -1,4 +1,5 @@
 #include "game.h"
+#include "config.h"
 #include "coal_miner.h"
 #include "coal_miner_internal.h"
 #include "camera.h"
@@ -7,7 +8,10 @@
 
 void game_awake()
 {
+#if defined(DRAW_GRID)
 	load_grid();
+#endif
+
 	load_terrain();
 	load_camera();
 	cm_disable_cursor();
@@ -21,10 +25,11 @@ void game_update()
 
 void game_render()
 {
-	int hex = 0xf;
 	cm_begin_mode_3d(get_camera());
-	
+
+#if defined(DRAW_GRID)
 	draw_grid();
+#endif
 	draw_terrain();
 	
 	cm_end_mode_3d();
