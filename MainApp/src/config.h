@@ -22,6 +22,13 @@
 #define TERRAIN_2D_PERLIN_FREQUENCY .01f
 
 #define TERRAIN_CAVE_EDGE .11f
+
+#define TERRAIN_2D_OCTAVES 6
+#define TERRAIN_2D_GAIN .5f
+#define TERRAIN_2D_LACUNARITY 2
+
+#define TERRAIN_3D_GAIN .5f
+#define TERRAIN_3D_LACUNARITY 2
 //endregion
 
 #endif //CONFIG_H

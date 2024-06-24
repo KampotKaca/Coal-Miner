@@ -158,6 +158,8 @@ static void InitNoise()
 	voxelTerrain.noise3D.noise_type = FNL_NOISE_PERLIN;
 	voxelTerrain.noise3D.seed = rand() % 10000000;
 	voxelTerrain.noise3D.fractal_type = FNL_FRACTAL_PINGPONG;
+	voxelTerrain.noise3D.gain = TERRAIN_3D_GAIN;
+	voxelTerrain.noise3D.lacunarity = TERRAIN_3D_LACUNARITY;
 	voxelTerrain.noise3D.frequency = TERRAIN_3D_PERLIN_FREQUENCY;
 
 	//2D
@@ -165,6 +167,9 @@ static void InitNoise()
 	voxelTerrain.noise2D.noise_type = FNL_NOISE_PERLIN;
 	voxelTerrain.noise2D.seed = rand() % 10000000;
 	voxelTerrain.noise2D.fractal_type = FNL_FRACTAL_FBM;
+	voxelTerrain.noise2D.octaves = TERRAIN_2D_OCTAVES;
+	voxelTerrain.noise2D.gain = TERRAIN_2D_GAIN;
+	voxelTerrain.noise2D.lacunarity = TERRAIN_2D_LACUNARITY;
 	voxelTerrain.noise2D.frequency = TERRAIN_2D_PERLIN_FREQUENCY;
 }
 
