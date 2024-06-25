@@ -38,14 +38,17 @@ typedef struct
 
 typedef struct
 {
-	int u_chunkId;
 	int u_chunkIndex;
+	int u_surfaceTex;
 
 	fnl_state noise2D;
 	fnl_state noise3D;
-	Shader terrainShader;
+
+	Shader shader;
+	Texture textures[6];
+
 	Vao quadVao;
-	Ssbo terrainSsbo;
+	Ssbo ssbo;
 	VoxelBuffer voxelBuffer;
 	
 	unsigned char cells[TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT];
@@ -88,7 +91,7 @@ void load_terrain()
 				CreateChunkFaces((unsigned int[]){x, y, z});
 	
 	voxelTerrain.quadVao = cm_get_unit_quad();
-	voxelTerrain.terrainSsbo = cm_load_ssbo(64, sizeof(VoxelBuffer), &voxelTerrain.voxelBuffer, false);
+	voxelTerrain.ssbo = cm_load_ssbo(64, sizeof(VoxelBuffer), &voxelTerrain.voxelBuffer, false);
 }
 
 void update_terrain()
@@ -106,7 +109,11 @@ void update_terrain()
 
 void draw_terrain()
 {
-	cm_begin_shader_mode(voxelTerrain.terrainShader);
+	cm_begin_shader_mode(voxelTerrain.shader);
+
+	for (int i = 0; i < 6; ++i)
+		cm_set_texture(voxelTerrain.u_surfaceTex + i, voxelTerrain.textures[i].id, i);
+
 	UniformData data = {0};
 
 	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
@@ -134,8 +141,10 @@ void draw_terrain()
 
 void dispose_terrain()
 {
-	cm_unload_ssbo(voxelTerrain.terrainSsbo);
-	cm_unload_shader(voxelTerrain.terrainShader);
+	for (int i = 0; i < 6; ++i) cm_unload_texture(voxelTerrain.textures[i]);
+
+	cm_unload_ssbo(voxelTerrain.ssbo);
+	cm_unload_shader(voxelTerrain.shader);
 }
 //endregion
 
@@ -146,9 +155,23 @@ static void CreateShader()
 	Path vsPath = TO_RES_PATH(vsPath, "shaders/voxel_terrain.vert");
 	Path fsPath = TO_RES_PATH(fsPath, "shaders/voxel_terrain.frag");
 	
-	voxelTerrain.terrainShader = cm_load_shader(vsPath, fsPath);
-	voxelTerrain.u_chunkId = cm_get_uniform_location(voxelTerrain.terrainShader, "u_chunkId");
-	voxelTerrain.u_chunkIndex = cm_get_uniform_location(voxelTerrain.terrainShader, "u_chunkIndex");
+	voxelTerrain.shader = cm_load_shader(vsPath, fsPath);
+	voxelTerrain.u_chunkIndex = cm_get_uniform_location(voxelTerrain.shader, "u_chunkIndex");
+	voxelTerrain.u_surfaceTex = cm_get_uniform_location(voxelTerrain.shader, "u_surfaceTex");
+
+	Path mapPath0 = TO_RES_PATH(mapPath0, "2d/terrain/0.Map_Front.png");
+	Path mapPath1 = TO_RES_PATH(mapPath1, "2d/terrain/1.Map_Back.png");
+	Path mapPath2 = TO_RES_PATH(mapPath2, "2d/terrain/2.Map_Right.png");
+	Path mapPath3 = TO_RES_PATH(mapPath3, "2d/terrain/3.Map_Left.png");
+	Path mapPath4 = TO_RES_PATH(mapPath4, "2d/terrain/4.Map_Top.png");
+	Path mapPath5 = TO_RES_PATH(mapPath5, "2d/terrain/5.Map_Bottom.png");
+
+	voxelTerrain.textures[0] = cm_load_texture(mapPath0);
+	voxelTerrain.textures[1] = cm_load_texture(mapPath1);
+	voxelTerrain.textures[2] = cm_load_texture(mapPath2);
+	voxelTerrain.textures[3] = cm_load_texture(mapPath3);
+	voxelTerrain.textures[4] = cm_load_texture(mapPath4);
+	voxelTerrain.textures[5] = cm_load_texture(mapPath5);
 }
 
 static void InitNoise()
@@ -327,10 +350,12 @@ static void GenerateHeightMap(const unsigned int chunkId[2], const unsigned int 
 	}
 }
 
-static void PassTerrainDataToShader(UniformData * data)
+static void PassTerrainDataToShader(UniformData* data)
 {
-	cm_set_uniform_u(voxelTerrain.u_chunkId, data->chunkId);
-	cm_set_uniform_uvec3(voxelTerrain.u_chunkIndex, data->chunk);
+	unsigned int index[4];
+	memcpy_s(index, sizeof(index), data->chunk, sizeof(data->chunk));
+	index[3] = data->chunkId;
+	cm_set_uniform_uvec4(voxelTerrain.u_chunkIndex, index);
 }
 
 static unsigned int GetChunkId(const unsigned int id[3])

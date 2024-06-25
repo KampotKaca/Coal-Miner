@@ -129,6 +129,11 @@ unsigned int load_texture(const void *data, int width, int height, int format, i
 	return id;
 }
 
+void cm_unload_texture(Texture tex)
+{
+	glDeleteTextures(1, &tex.id);
+}
+
 void get_gl_texture_formats(int format, unsigned int *glInternalFormat, unsigned int *glFormat, unsigned int *glType)
 {
 	*glInternalFormat = 0;

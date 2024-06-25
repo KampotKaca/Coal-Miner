@@ -1,5 +1,14 @@
 #version 430 core
 
+const uint TERRAIN_HEIGHT = 4;
+const uint TERRAIN_VIEW = 8;
+const uint CHUNK_SIZE = 32;
+const uint CHUNK_CUBE_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+
+const uint MAX_AXIS_SURFACE_TYPE = 16;
+const float AXIS_SURFACE_OFFSET = 1.0f / MAX_AXIS_SURFACE_TYPE;
+const uint MAX_SUFACE_TYPE = MAX_AXIS_SURFACE_TYPE * MAX_AXIS_SURFACE_TYPE;
+
 layout(std140, binding = 32) uniform Camera
 {
     mat4 cameraView;
@@ -8,6 +17,9 @@ layout(std140, binding = 32) uniform Camera
     vec3 cameraPosition;
     vec3 cameraDirection;
 };
+
+//4bit uvX
+//4bit uvY
 
 //5bit BlockPositionZ
 //5bit BlockPositionY
@@ -23,15 +35,11 @@ layout(std430, binding = 64) buffer VoxelBuffer
 //2bit Id
 layout(location = 0) in uint vertex;
 
-const uint TERRAIN_HEIGHT = 4;
-const uint TERRAIN_VIEW = 8;
-const uint CHUNK_SIZE = 32;
-const uint CHUNK_CUBE_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+//xyz index, w id
+uniform uvec4 u_chunkIndex;
 
-uniform uint u_chunkId;
-uniform uvec3 u_chunkIndex;
-
-out vec4 out_color;
+out uint out_faceId;
+out vec2 out_uv;
 
 void main()
 {
@@ -39,10 +47,12 @@ void main()
     ivec2 lPos = ivec2((vert & 2u) >> 1, vert & 1u);
     vert = vert >> 2;
 
-    uint face = voxelFaces[u_chunkId * CHUNK_CUBE_COUNT + gl_InstanceID];
+    uint face = voxelFaces[u_chunkIndex.w * CHUNK_CUBE_COUNT + gl_InstanceID];
     ivec3 vertexPos;
 
-    switch(face & 7u)
+    out_faceId = face & 7u;
+
+    switch(out_faceId)
     {
         case 0: //front
         vertexPos = ivec3(lPos.x, 1 - lPos.y, 1);
@@ -67,6 +77,9 @@ void main()
     ivec3 blockPos = ivec3((face & 31744u) >> 10, (face & 992u) >> 5, face & 31u);
     face = face >> 15;
 
-    out_color = vec4(vertexPos, 1.0);
-    gl_Position = cameraViewProjection * vec4(u_chunkIndex * CHUNK_SIZE + blockPos + vertexPos, 1.0);
+    ivec2 surfaceId = ivec2((face & 0xf0u) >> 4, (face & 0x0fu));
+    face = face >> 8;
+
+    out_uv = surfaceId * AXIS_SURFACE_OFFSET;
+    gl_Position = cameraViewProjection * vec4(u_chunkIndex.xyz * CHUNK_SIZE + blockPos + vertexPos, 1.0);
 }

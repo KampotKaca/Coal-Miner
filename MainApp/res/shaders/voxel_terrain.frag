@@ -1,9 +1,13 @@
 #version 430 core
 
-in vec4 out_color;
+in flat uint out_faceId;
+in vec2 out_uv;
+
 out vec4 finalColor;
+
+uniform sampler2D u_surfaceTex[6];
 
 void main()
 {
-    finalColor = out_color;
+    finalColor = texture(u_surfaceTex[out_faceId], out_uv);
 }
