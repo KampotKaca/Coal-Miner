@@ -646,8 +646,9 @@ void cm_set_uniform_u(int id, unsigned int f) { glUniform1ui(id, f); }
 
 void cm_set_texture(int id, unsigned int texId, unsigned char bindingPoint)
 {
-	glBindTexture(GL_TEXTURE0 + bindingPoint, texId);
-	glUniform1i(id, GL_TEXTURE0 + bindingPoint);
+	glActiveTexture(GL_TEXTURE0 + bindingPoint);
+	glBindTexture(GL_TEXTURE_2D, texId);
+	glUniform1i(id, bindingPoint);
 }
 
 void cm_enable_color_blend(void) { glEnable(GL_BLEND); }

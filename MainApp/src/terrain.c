@@ -214,7 +214,8 @@ static void CreateChunkFaces(const unsigned int chunk[3])
 			for (unsigned int z = zStart; z < zEnd; z++)
 			{
 				unsigned int cubeId = y * FULL_HORIZONTAL_SLICE + x * FULL_AXIS_SIZE + z;
-				if(voxelTerrain.cells[cubeId] == 0) continue;
+				unsigned char currentCell = voxelTerrain.cells[cubeId];
+				if(currentCell == 0) continue;
 
 				unsigned char faceMask = 0;
 				
@@ -229,8 +230,12 @@ static void CreateChunkFaces(const unsigned int chunk[3])
 
 				if(faceMask == 0) continue;
 
-				unsigned int blockIndex = ((x % TERRAIN_CHUNK_SIZE) << 10) |
-						                  ((y % TERRAIN_CHUNK_SIZE) << 5) | (z % TERRAIN_CHUNK_SIZE);
+				unsigned int blockIndex = (currentCell / TERRAIN_MAX_AXIS_BLOCK_TYPES) << 4 |
+										  (currentCell % TERRAIN_MAX_AXIS_BLOCK_TYPES);
+
+				blockIndex <<= 15;
+				blockIndex |= ((x % TERRAIN_CHUNK_SIZE) << 10) |
+				              ((y % TERRAIN_CHUNK_SIZE) << 5) | (z % TERRAIN_CHUNK_SIZE);
 				blockIndex <<= 3;
 				
 				//front face

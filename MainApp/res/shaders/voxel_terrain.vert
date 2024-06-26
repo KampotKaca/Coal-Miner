@@ -6,7 +6,7 @@ const uint CHUNK_SIZE = 32;
 const uint CHUNK_CUBE_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 const uint MAX_AXIS_SURFACE_TYPE = 16;
-const float AXIS_SURFACE_OFFSET = 1.0f / MAX_AXIS_SURFACE_TYPE;
+const float AXIS_SURFACE_OFFSET = 1.0f / (MAX_AXIS_SURFACE_TYPE);
 const uint MAX_SUFACE_TYPE = MAX_AXIS_SURFACE_TYPE * MAX_AXIS_SURFACE_TYPE;
 
 layout(std140, binding = 32) uniform Camera
@@ -38,7 +38,7 @@ layout(location = 0) in uint vertex;
 //xyz index, w id
 uniform uvec4 u_chunkIndex;
 
-out uint out_faceId;
+out flat uint out_faceId;
 out vec2 out_uv;
 
 void main()
@@ -77,9 +77,9 @@ void main()
     ivec3 blockPos = ivec3((face & 31744u) >> 10, (face & 992u) >> 5, face & 31u);
     face = face >> 15;
 
-    ivec2 surfaceId = ivec2((face & 0xf0u) >> 4, (face & 0x0fu));
+    ivec2 surfaceId = ivec2((face & 240u) >> 4, (face & 15u));
     face = face >> 8;
 
-    out_uv = surfaceId * AXIS_SURFACE_OFFSET;
+    out_uv = (surfaceId * AXIS_SURFACE_OFFSET) + (AXIS_SURFACE_OFFSET * lPos);
     gl_Position = cameraViewProjection * vec4(u_chunkIndex.xyz * CHUNK_SIZE + blockPos + vertexPos, 1.0);
 }
