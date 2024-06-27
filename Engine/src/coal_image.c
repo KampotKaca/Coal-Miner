@@ -41,10 +41,11 @@ void cm_unload_images(Image* image, int size)
 	for (int i = 0; i < size; ++i) cm_unload_image(image[i]);
 }
 
-Texture cm_load_texture(const char* filePath, TextureFlags wrap, TextureFlags filter)
+Texture cm_load_texture(const char* filePath, TextureFlags wrap, TextureFlags filter, bool useMipMaps)
 {
 	Texture texture = { 0 };
 	Image image = cm_load_image(filePath);
+	if(!useMipMaps) image.mipmaps = 1;
 	
 	if (image.data != NULL)
 	{

@@ -425,7 +425,7 @@ extern Image cm_load_image(const char* filePath);
 extern void cm_unload_image(Image image);
 extern void cm_unload_images(Image* image, int size);
 
-extern Texture cm_load_texture(const char* filePath, TextureFlags wrap, TextureFlags filter);
+extern Texture cm_load_texture(const char* filePath, TextureFlags wrap, TextureFlags filter, bool useMipMaps);
 extern void cm_unload_texture(Texture tex);
 extern Texture cm_load_texture_from_image(Image image, TextureFlags wrap, TextureFlags filter);
 //endregion

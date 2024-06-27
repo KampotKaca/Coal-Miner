@@ -10,6 +10,8 @@ add_executable(Coal_Miner ${MAIN_SRC})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Engine)
 
+target_include_directories(${PROJECT_NAME} PUBLIC MainApp/src/)
+
 #region resources
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/MainApp/res/") #DEBUG

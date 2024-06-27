@@ -3,7 +3,7 @@
 #include "coal_miner.h"
 #include "coal_miner_internal.h"
 #include "camera.h"
-#include "terrain.h"
+#include "terrainGeneration/terrain.h"
 #include "grid.h"
 
 void game_awake()

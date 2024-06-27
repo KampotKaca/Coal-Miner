@@ -40,13 +40,12 @@ typedef struct
 {
 	int u_chunkIndex;
 	int u_surfaceTex;
-	int u_outlineColor;
 
-	fnl_state noise2D;
-	fnl_state noise3D;
+	fnl_state heightNoise;
+	fnl_state caveNoise;
 
 	Shader shader;
-	Texture textures[6];
+	Texture textures[3];
 
 	Vao quadVao;
 	Ssbo ssbo;
@@ -63,7 +62,8 @@ bool terrainIsWireMode;
 
 static void CreateShader();
 static void InitNoise();
-static void GenerateChunk(const unsigned int chunkId[3], const unsigned int destination[3]);
+static void GeneratePreChunk(const unsigned int chunkId[3], const unsigned int destination[3]);
+static void GeneratePostChunk(const unsigned int chunkId[3], const unsigned int destination[3]);
 static void GenerateHeightMap(const unsigned int chunkId[2], const unsigned int destination[2]);
 static void CreateChunkFaces(const unsigned int chunk[3]);
 static void PassTerrainDataToShader(UniformData* data);
@@ -72,6 +72,7 @@ static unsigned int GetChunkId(const unsigned int id[3]);
 //region Callback Functions
 void load_terrain()
 {
+	load_block_types();
 	CreateShader();
 	InitNoise();
 	
@@ -84,7 +85,12 @@ void load_terrain()
 	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
 		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 			for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
-				GenerateChunk((unsigned int[]) {x, y, z}, (unsigned int[]) {x, y, z});
+				GeneratePreChunk((unsigned int[]) {x, y, z}, (unsigned int[]) {x, y, z});
+	
+	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
+		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
+			for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
+				GeneratePostChunk((unsigned int[]) {x, y, z}, (unsigned int[]) {x, y, z});
 	
 	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
 		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
@@ -111,9 +117,12 @@ void update_terrain()
 void draw_terrain()
 {
 	cm_begin_shader_mode(voxelTerrain.shader);
-
-	for (int i = 0; i < 6; ++i)
-		cm_set_texture(voxelTerrain.u_surfaceTex + i, voxelTerrain.textures[i].id, i);
+	
+	for (int i = 0; i < 4; ++i)
+		cm_set_texture(voxelTerrain.u_surfaceTex + i, voxelTerrain.textures[0].id, i);
+	
+	cm_set_texture(voxelTerrain.u_surfaceTex + 4, voxelTerrain.textures[1].id, 4);
+	cm_set_texture(voxelTerrain.u_surfaceTex + 5, voxelTerrain.textures[2].id, 5);
 
 	UniformData data = {0};
 
@@ -142,7 +151,7 @@ void draw_terrain()
 
 void dispose_terrain()
 {
-	for (int i = 0; i < 6; ++i) cm_unload_texture(voxelTerrain.textures[i]);
+	for (int i = 0; i < 3; ++i) cm_unload_texture(voxelTerrain.textures[i]);
 
 	cm_unload_ssbo(voxelTerrain.ssbo);
 	cm_unload_shader(voxelTerrain.shader);
@@ -159,43 +168,36 @@ static void CreateShader()
 	voxelTerrain.shader = cm_load_shader(vsPath, fsPath);
 	voxelTerrain.u_chunkIndex = cm_get_uniform_location(voxelTerrain.shader, "u_chunkIndex");
 	voxelTerrain.u_surfaceTex = cm_get_uniform_location(voxelTerrain.shader, "u_surfaceTex");
-	voxelTerrain.u_outlineColor = cm_get_uniform_location(voxelTerrain.shader, "u_outlineColor");
 
-	Path mapPath0 = TO_RES_PATH(mapPath0, "2d/terrain/0.Map_Front.png");
-	Path mapPath1 = TO_RES_PATH(mapPath1, "2d/terrain/1.Map_Back.png");
-	Path mapPath2 = TO_RES_PATH(mapPath2, "2d/terrain/2.Map_Right.png");
-	Path mapPath3 = TO_RES_PATH(mapPath3, "2d/terrain/3.Map_Left.png");
-	Path mapPath4 = TO_RES_PATH(mapPath4, "2d/terrain/4.Map_Top.png");
-	Path mapPath5 = TO_RES_PATH(mapPath5, "2d/terrain/5.Map_Bottom.png");
+	Path mapPath0 = TO_RES_PATH(mapPath0, "2d/terrain/0.Map_Side.png");
+	Path mapPath1 = TO_RES_PATH(mapPath1, "2d/terrain/1.Map_Top.png");
+	Path mapPath2 = TO_RES_PATH(mapPath2, "2d/terrain/2.Map_Bottom.png");
 
-	voxelTerrain.textures[0] = cm_load_texture(mapPath0, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
-	voxelTerrain.textures[1] = cm_load_texture(mapPath1, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
-	voxelTerrain.textures[2] = cm_load_texture(mapPath2, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
-	voxelTerrain.textures[3] = cm_load_texture(mapPath3, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
-	voxelTerrain.textures[4] = cm_load_texture(mapPath4, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
-	voxelTerrain.textures[5] = cm_load_texture(mapPath5, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
+	voxelTerrain.textures[0] = cm_load_texture(mapPath0, CM_TEXTURE_WRAP_CLAMP_TO_EDGE, CM_TEXTURE_FILTER_NEAREST, false);
+	voxelTerrain.textures[1] = cm_load_texture(mapPath1, CM_TEXTURE_WRAP_CLAMP_TO_EDGE, CM_TEXTURE_FILTER_NEAREST, false);
+	voxelTerrain.textures[2] = cm_load_texture(mapPath2, CM_TEXTURE_WRAP_CLAMP_TO_EDGE, CM_TEXTURE_FILTER_NEAREST, false);
 }
 
 static void InitNoise()
 {
 	//3D
-	voxelTerrain.noise3D = fnlCreateState();
-	voxelTerrain.noise3D.noise_type = FNL_NOISE_PERLIN;
-	voxelTerrain.noise3D.seed = rand() % 10000000;
-	voxelTerrain.noise3D.fractal_type = FNL_FRACTAL_PINGPONG;
-	voxelTerrain.noise3D.gain = TERRAIN_3D_GAIN;
-	voxelTerrain.noise3D.lacunarity = TERRAIN_3D_LACUNARITY;
-	voxelTerrain.noise3D.frequency = TERRAIN_3D_PERLIN_FREQUENCY;
+	voxelTerrain.caveNoise = fnlCreateState();
+	voxelTerrain.caveNoise.noise_type = FNL_NOISE_PERLIN;
+	voxelTerrain.caveNoise.seed = rand() % 10000000;
+	voxelTerrain.caveNoise.fractal_type = FNL_FRACTAL_PINGPONG;
+	voxelTerrain.caveNoise.gain = TERRAIN_CAVE_GAIN;
+	voxelTerrain.caveNoise.lacunarity = TERRAIN_CAVE_LACUNARITY;
+	voxelTerrain.caveNoise.frequency = TERRAIN_CAVE_FREQUENCY;
 
 	//2D
-	voxelTerrain.noise2D = fnlCreateState();
-	voxelTerrain.noise2D.noise_type = FNL_NOISE_PERLIN;
-	voxelTerrain.noise2D.seed = rand() % 10000000;
-	voxelTerrain.noise2D.fractal_type = FNL_FRACTAL_FBM;
-	voxelTerrain.noise2D.octaves = TERRAIN_2D_OCTAVES;
-	voxelTerrain.noise2D.gain = TERRAIN_2D_GAIN;
-	voxelTerrain.noise2D.lacunarity = TERRAIN_2D_LACUNARITY;
-	voxelTerrain.noise2D.frequency = TERRAIN_2D_PERLIN_FREQUENCY;
+	voxelTerrain.caveNoise = fnlCreateState();
+	voxelTerrain.caveNoise.noise_type = FNL_NOISE_PERLIN;
+	voxelTerrain.caveNoise.seed = rand() % 10000000;
+	voxelTerrain.caveNoise.fractal_type = FNL_FRACTAL_FBM;
+	voxelTerrain.caveNoise.octaves = TERRAIN_HEIGHT_OCTAVES;
+	voxelTerrain.caveNoise.gain = TERRAIN_HEIGHT_GAIN;
+	voxelTerrain.caveNoise.lacunarity = TERRAIN_HEIGHT_LACUNARITY;
+	voxelTerrain.caveNoise.frequency = TERRAIN_HEIGHT_FREQUENCY;
 }
 
 static void CreateChunkFaces(const unsigned int chunk[3])
@@ -217,21 +219,22 @@ static void CreateChunkFaces(const unsigned int chunk[3])
 			{
 				unsigned int cubeId = y * FULL_HORIZONTAL_SLICE + x * FULL_AXIS_SIZE + z;
 				unsigned char currentCell = voxelTerrain.cells[cubeId];
-				if(currentCell == 0) continue;
+				if(currentCell == BLOCK_EMPTY) continue;
 
 				unsigned char faceMask = 0;
 				
 				//region define faces
-				faceMask |= (z == FULL_AXIS_SIZE - 1 || voxelTerrain.cells[cubeId + 1] == 0) << 5;                         //front
-				faceMask |= (z == 0 || voxelTerrain.cells[cubeId - 1] == 0) << 4;                                          //back
-				faceMask |= (x == FULL_AXIS_SIZE - 1 || voxelTerrain.cells[cubeId + FULL_AXIS_SIZE] == 0) << 3;            //right
-				faceMask |= (x == 0 || voxelTerrain.cells[cubeId - FULL_AXIS_SIZE] == 0) << 2;                             //left
-				faceMask |= (y == FULL_VERTICAL_SIZE - 1 || voxelTerrain.cells[cubeId + FULL_HORIZONTAL_SLICE] == 0) << 1; //top
-				faceMask |= (y == 0 || voxelTerrain.cells[cubeId - FULL_HORIZONTAL_SLICE] == 0);                           //bottom
+				faceMask |= (z == FULL_AXIS_SIZE - 1 || voxelTerrain.cells[cubeId + 1] == BLOCK_EMPTY) << 5;                         //front
+				faceMask |= (z == 0 || voxelTerrain.cells[cubeId - 1] == BLOCK_EMPTY) << 4;                                          //back
+				faceMask |= (x == FULL_AXIS_SIZE - 1 || voxelTerrain.cells[cubeId + FULL_AXIS_SIZE] == BLOCK_EMPTY) << 3;            //right
+				faceMask |= (x == 0 || voxelTerrain.cells[cubeId - FULL_AXIS_SIZE] == BLOCK_EMPTY) << 2;                             //left
+				faceMask |= (y == FULL_VERTICAL_SIZE - 1 || voxelTerrain.cells[cubeId + FULL_HORIZONTAL_SLICE] == BLOCK_EMPTY) << 1; //top
+				faceMask |= (y == 0 || voxelTerrain.cells[cubeId - FULL_HORIZONTAL_SLICE] == BLOCK_EMPTY);                           //bottom
 				//endregion
 
 				if(faceMask == 0) continue;
-
+				
+				currentCell--;
 				unsigned int blockIndex = (currentCell / TERRAIN_MAX_AXIS_BLOCK_TYPES) << 4 |
 										  (currentCell % TERRAIN_MAX_AXIS_BLOCK_TYPES);
 
@@ -289,7 +292,7 @@ static void CreateChunkFaces(const unsigned int chunk[3])
 	voxelTerrain.faceCounts[chunkId] = faceCount;
 }
 
-static void GenerateChunk(const unsigned int chunkId[3], const unsigned int destination[3])
+static void GeneratePreChunk(const unsigned int chunkId[3], const unsigned int destination[3])
 {
 	//region defines
 #define SET_CHUNK(t) for (unsigned int y = yStart; y < yEnd; ++y)\
@@ -320,20 +323,27 @@ static void GenerateChunk(const unsigned int chunkId[3], const unsigned int dest
 			unsigned int xzId = x * FULL_AXIS_SIZE + z;
 			unsigned int yLimit = glm_imin((int)yEnd, voxelTerrain.heightMap[x * FULL_AXIS_SIZE + z]);
 
-			for (unsigned int y = yStart; y < yLimit; ++y)
+			for (unsigned int y = yStart; y <= yLimit; ++y)
 			{
 				unsigned int py = chunkId[1] * TERRAIN_CHUNK_SIZE + (y % TERRAIN_CHUNK_SIZE);
-				float val3D = fnlGetNoise3D(&voxelTerrain.noise3D, (float)(px), (float)(py), (float)(pz));
-				val3D = (val3D + 1) * .5f;
-
-				if(val3D >= TERRAIN_CAVE_EDGE)
+				float caveValue = fnlGetNoise3D(&voxelTerrain.caveNoise, (float)(px), (float)(py), (float)(pz));
+				
+				if(caveValue >= TERRAIN_CAVE_EDGE)
 				{
+					caveValue -= TERRAIN_CAVE_EDGE;
+					caveValue = (caveValue + 1) * .5f;
+					
 					unsigned int id = y * FULL_HORIZONTAL_SLICE + xzId;
-					voxelTerrain.cells[id] = 1;
+					voxelTerrain.cells[id] = get_block_type(caveValue);
 				}
 			}
 		}
 	}
+}
+
+static void GeneratePostChunk(const unsigned int chunkId[3], const unsigned int destination[3])
+{
+
 }
 
 static void GenerateHeightMap(const unsigned int chunkId[2], const unsigned int destination[2])
@@ -348,7 +358,7 @@ static void GenerateHeightMap(const unsigned int chunkId[2], const unsigned int 
 		{
 			unsigned int pz = chunkId[1] * TERRAIN_CHUNK_SIZE + (z % TERRAIN_CHUNK_SIZE);
 
-			float val2D = fnlGetNoise2D(&voxelTerrain.noise2D, (float)(px), (float)(pz));
+			float val2D = fnlGetNoise2D(&voxelTerrain.caveNoise, (float)(px), (float)(pz));
 			val2D = (val2D + 1) * .5f;
 			unsigned char height = (TERRAIN_LOWER_EDGE * TERRAIN_CHUNK_SIZE) +
 				(unsigned char)(val2D * (TERRAIN_CHUNK_SIZE * (TERRAIN_UPPER_EDGE - TERRAIN_LOWER_EDGE) - 1));
@@ -363,7 +373,6 @@ static void PassTerrainDataToShader(UniformData* data)
 	memcpy_s(index, sizeof(index), data->chunk, sizeof(data->chunk));
 	index[3] = data->chunkId;
 	cm_set_uniform_uvec4(voxelTerrain.u_chunkIndex, index);
-	cm_set_uniform_vec4(voxelTerrain.u_outlineColor, TERRAIN_OUTLINE_COLOR);
 }
 
 static unsigned int GetChunkId(const unsigned int id[3])

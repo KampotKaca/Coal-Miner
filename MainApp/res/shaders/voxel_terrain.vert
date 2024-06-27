@@ -51,28 +51,6 @@ void main()
     ivec3 vertexPos;
 
     out_faceId = face & 7u;
-
-    switch(out_faceId)
-    {
-        case 0: //front
-        vertexPos = ivec3(lPos.x, 1 - lPos.y, 1);
-        break;
-        case 1: //back
-        vertexPos = ivec3(lPos, 0);
-        break;
-        case 2: //right
-        vertexPos = ivec3(1, lPos.y, lPos.x);
-        break;
-        case 3: //left
-        vertexPos = ivec3(0, lPos.y, 1 - lPos.x);
-        break;
-        case 4: //top
-        vertexPos = ivec3(lPos.x, 1, lPos.y);
-        break;
-        case 5: //bottom
-        vertexPos = ivec3(lPos.x, 0, 1 - lPos.y);
-        break;
-    }
     face = face >> 3;
     ivec3 blockPos = ivec3((face & 31744u) >> 10, (face & 992u) >> 5, face & 31u);
     face = face >> 15;
@@ -80,6 +58,33 @@ void main()
     ivec2 surfaceId = ivec2((face & 240u) >> 4, (face & 15u));
     face = face >> 8;
 
-    out_uv = (surfaceId * AXIS_SURFACE_OFFSET) + (AXIS_SURFACE_OFFSET * lPos);
+    switch(out_faceId)
+    {
+        case 0: //front
+        vertexPos = ivec3(lPos.x, 1 - lPos.y, 1);
+        out_uv = ((surfaceId + ivec2(0, 1)) * AXIS_SURFACE_OFFSET) + (vec2(1, -1) * AXIS_SURFACE_OFFSET * lPos);
+        break;
+        case 1: //back
+        vertexPos = ivec3(lPos, 0);
+        out_uv = (surfaceId * AXIS_SURFACE_OFFSET) + (AXIS_SURFACE_OFFSET * lPos);
+        break;
+        case 2: //right
+        vertexPos = ivec3(1, lPos.y, lPos.x);
+        out_uv = (surfaceId * AXIS_SURFACE_OFFSET) + (AXIS_SURFACE_OFFSET * lPos);
+        break;
+        case 3: //left
+        vertexPos = ivec3(0, lPos.y, 1 - lPos.x);
+        out_uv = ((surfaceId + ivec2(1, 0)) * AXIS_SURFACE_OFFSET) + (vec2(-1, 1) * AXIS_SURFACE_OFFSET * lPos);
+        break;
+        case 4: //top
+        vertexPos = ivec3(lPos.x, 1, lPos.y);
+        out_uv = (surfaceId * AXIS_SURFACE_OFFSET) + (AXIS_SURFACE_OFFSET * lPos);
+        break;
+        case 5: //bottom
+        vertexPos = ivec3(lPos.x, 0, 1 - lPos.y);
+        out_uv = (surfaceId * AXIS_SURFACE_OFFSET) + (AXIS_SURFACE_OFFSET * lPos);
+        break;
+    }
+
     gl_Position = cameraViewProjection * vec4(u_chunkIndex.xyz * CHUNK_SIZE + blockPos + vertexPos, 1.0);
 }
