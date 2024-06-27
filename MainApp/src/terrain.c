@@ -40,6 +40,7 @@ typedef struct
 {
 	int u_chunkIndex;
 	int u_surfaceTex;
+	int u_outlineColor;
 
 	fnl_state noise2D;
 	fnl_state noise3D;
@@ -158,6 +159,7 @@ static void CreateShader()
 	voxelTerrain.shader = cm_load_shader(vsPath, fsPath);
 	voxelTerrain.u_chunkIndex = cm_get_uniform_location(voxelTerrain.shader, "u_chunkIndex");
 	voxelTerrain.u_surfaceTex = cm_get_uniform_location(voxelTerrain.shader, "u_surfaceTex");
+	voxelTerrain.u_outlineColor = cm_get_uniform_location(voxelTerrain.shader, "u_outlineColor");
 
 	Path mapPath0 = TO_RES_PATH(mapPath0, "2d/terrain/0.Map_Front.png");
 	Path mapPath1 = TO_RES_PATH(mapPath1, "2d/terrain/1.Map_Back.png");
@@ -166,12 +168,12 @@ static void CreateShader()
 	Path mapPath4 = TO_RES_PATH(mapPath4, "2d/terrain/4.Map_Top.png");
 	Path mapPath5 = TO_RES_PATH(mapPath5, "2d/terrain/5.Map_Bottom.png");
 
-	voxelTerrain.textures[0] = cm_load_texture(mapPath0);
-	voxelTerrain.textures[1] = cm_load_texture(mapPath1);
-	voxelTerrain.textures[2] = cm_load_texture(mapPath2);
-	voxelTerrain.textures[3] = cm_load_texture(mapPath3);
-	voxelTerrain.textures[4] = cm_load_texture(mapPath4);
-	voxelTerrain.textures[5] = cm_load_texture(mapPath5);
+	voxelTerrain.textures[0] = cm_load_texture(mapPath0, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
+	voxelTerrain.textures[1] = cm_load_texture(mapPath1, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
+	voxelTerrain.textures[2] = cm_load_texture(mapPath2, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
+	voxelTerrain.textures[3] = cm_load_texture(mapPath3, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
+	voxelTerrain.textures[4] = cm_load_texture(mapPath4, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
+	voxelTerrain.textures[5] = cm_load_texture(mapPath5, CM_TEXTURE_WRAP_REPEAT, CM_TEXTURE_FILTER_LINEAR);
 }
 
 static void InitNoise()
@@ -361,6 +363,7 @@ static void PassTerrainDataToShader(UniformData* data)
 	memcpy_s(index, sizeof(index), data->chunk, sizeof(data->chunk));
 	index[3] = data->chunkId;
 	cm_set_uniform_uvec4(voxelTerrain.u_chunkIndex, index);
+	cm_set_uniform_vec4(voxelTerrain.u_outlineColor, TERRAIN_OUTLINE_COLOR);
 }
 
 static unsigned int GetChunkId(const unsigned int id[3])

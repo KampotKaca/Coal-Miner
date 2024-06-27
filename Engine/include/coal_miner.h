@@ -285,6 +285,18 @@ typedef struct Image
 	int format;             // Data format (PixelFormat type)
 } Image;
 
+typedef enum TextureFlags
+{
+	CM_TEXTURE_WRAP_REPEAT = 0x2901,
+	CM_TEXTURE_WRAP_CLAMP_TO_EDGE = 0x812F,
+	CM_TEXTURE_WRAP_CLAMP_TO_BORDER = 0x812D,
+	
+	CM_TEXTURE_FILTER_NEAREST = 0x2600,
+	CM_TEXTURE_FILTER_LINEAR = 0x2601,
+	CM_TEXTURE_FILTER_TRILINEAR = 0x2602,
+	
+}TextureFlags;
+
 // Texture, tex data stored in GPU memory (VRAM)
 typedef struct Texture
 {
@@ -413,9 +425,9 @@ extern Image cm_load_image(const char* filePath);
 extern void cm_unload_image(Image image);
 extern void cm_unload_images(Image* image, int size);
 
-extern Texture cm_load_texture(const char* filePath);
+extern Texture cm_load_texture(const char* filePath, TextureFlags wrap, TextureFlags filter);
 extern void cm_unload_texture(Texture tex);
-extern Texture cm_load_texture_from_image(Image image);
+extern Texture cm_load_texture_from_image(Image image, TextureFlags wrap, TextureFlags filter);
 //endregion
 
 //region Shader

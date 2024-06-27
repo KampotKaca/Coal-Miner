@@ -1,7 +1,6 @@
 #include "cmgl.h"
 #include <glad/glad.h>
 #include "coal_image.h"
-#include "coal_miner.h"
 
 typedef struct Ubo
 {
@@ -49,7 +48,8 @@ const char *get_pixel_format_name(unsigned int format)
 	}
 }
 
-unsigned int load_texture(const void *data, int width, int height, int format, int mipmapCount)
+unsigned int load_texture(const void *data, int width, int height,
+						  TextureFlags wrap, TextureFlags filter, int format, int mipmapCount)
 {
 	unsigned int id = 0;
 	
@@ -102,18 +102,26 @@ unsigned int load_texture(const void *data, int width, int height, int format, i
 		if (mipHeight < 1) mipHeight = 1;
 	}
 	
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);       // Set texture to repeat on x-axis
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);       // Set texture to repeat on y-axis
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);       // Set texture to repeat on x-axis
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);       // Set texture to repeat on y-axis
 	
-	// Magnification and minification filters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  // Alternative: GL_LINEAR
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);  // Alternative: GL_LINEAR
-	
-	if (mipmapCount > 1)
+	if(filter != CM_TEXTURE_FILTER_TRILINEAR)
 	{
-		// Activate Trilinear filtering if mipmaps are available
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+	}
+	else
+	{
+		// Magnification and minification filters
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  // Alternative: GL_LINEAR
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);  // Alternative: GL_LINEAR
+		
+		if (mipmapCount > 1)
+		{
+			// Activate Trilinear filtering if mipmaps are available
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		}
 	}
 	
 	// At this point we have the texture loaded in GPU and texture parameters configured

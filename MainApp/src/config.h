@@ -31,6 +31,8 @@
 
 #define TERRAIN_3D_GAIN .5f
 #define TERRAIN_3D_LACUNARITY 2
+
+#define TERRAIN_OUTLINE_COLOR (vec4){ 0, 0, 0, 1 }
 //endregion
 
 #endif //CONFIG_H

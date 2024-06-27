@@ -41,27 +41,27 @@ void cm_unload_images(Image* image, int size)
 	for (int i = 0; i < size; ++i) cm_unload_image(image[i]);
 }
 
-Texture cm_load_texture(const char* filePath)
+Texture cm_load_texture(const char* filePath, TextureFlags wrap, TextureFlags filter)
 {
 	Texture texture = { 0 };
 	Image image = cm_load_image(filePath);
 	
 	if (image.data != NULL)
 	{
-		texture = cm_load_texture_from_image(image);
+		texture = cm_load_texture_from_image(image, wrap, filter);
 		cm_unload_image(image);
 	}
 	
 	return texture;
 }
 
-Texture cm_load_texture_from_image(Image image)
+Texture cm_load_texture_from_image(Image image, TextureFlags wrap, TextureFlags filter)
 {
 	Texture texture = { 0 };
 	
 	if ((image.width != 0) && (image.height != 0))
 	{
-		texture.id = load_texture(image.data, image.width, image.height, image.format, image.mipmaps);
+		texture.id = load_texture(image.data, image.width, image.height, wrap, filter, image.format, image.mipmaps);
 	}
 	else printf("IMAGE: Data is not valid to load texture");
 	
