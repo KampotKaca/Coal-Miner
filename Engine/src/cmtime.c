@@ -1,5 +1,6 @@
 #include "cmtime.h"
 #include <time.h>
+#include <unistd.h>
 
 #ifdef _WIN32
 
@@ -40,7 +41,7 @@ void update_time()
 	TIME.lastFrameTime = newTime - TIME.timeSinceStart;
 
 	double sleepTime = (1.0 / (double)TIME.targetFrameRate) - TIME.lastFrameTime;
-	if(sleepTime >= 0.001) coal_sleep(sleepTime);
+	if(sleepTime >= 0.001) cm_sleep(sleepTime);
 
 	newTime = glfwGetTime();
 
@@ -55,20 +56,12 @@ void update_time()
 	}
 }
 
-void coal_sleep(double sleepTime)
+void cm_sleep(double sleepTime)
 {
-#ifdef _WIN32
-
-	timeBeginPeriod(1);
-	Sleep((unsigned long)(sleepTime * 1000));
-	timeEndPeriod(1);
-
-#else
 	struct timespec req, rem;
-    req.tv_sec = (time_t)seconds;
-    req.tv_nsec = (long)((seconds - req.tv_sec) * 1e9);
-    nanosleep(&req, &rem);
-#endif
+	req.tv_sec = (time_t)sleepTime;
+	req.tv_nsec = (long)((double)req.tv_sec * 1e9);
+	nanosleep(&req, &rem);
 }
 
 float cm_delta_time_f() { return (float)TIME.deltaTime; }

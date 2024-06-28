@@ -51,6 +51,7 @@ target_link_libraries(Engine stb)
 target_link_libraries(Engine Winmm)
 
 target_include_directories(Engine PUBLIC src/)
+target_include_directories(Engine PUBLIC src/extras)
 target_include_directories(Engine PUBLIC include/)
 target_include_directories(Engine PUBLIC external/)
 target_include_directories(Engine PUBLIC external/glad/include)

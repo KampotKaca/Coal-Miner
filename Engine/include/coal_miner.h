@@ -17,7 +17,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>
-#include <extras/dirent.h>
+#include <dirent/dirent.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -541,6 +541,7 @@ extern int cm_get_touch_point_count(void);                       // Get number o
 
 //region Time
 
+extern void cm_sleep(double sleepTime);
 extern float cm_delta_time_f();
 extern double cm_delta_time();
 extern double cm_time_since_start();

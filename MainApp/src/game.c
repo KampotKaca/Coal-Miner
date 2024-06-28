@@ -21,6 +21,8 @@ void game_update()
 {
 	update_terrain();
 	update_camera();
+	
+//	printf("target: %i, frame Rate: %i\n", cm_get_target_frame_rate(), cm_frame_rate());
 }
 
 void game_render()
