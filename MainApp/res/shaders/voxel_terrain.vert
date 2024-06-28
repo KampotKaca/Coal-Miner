@@ -5,6 +5,10 @@ const uint TERRAIN_VIEW = 8;
 const uint CHUNK_SIZE = 32;
 const uint CHUNK_CUBE_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
+const uint FULL_AXIS = CHUNK_SIZE * TERRAIN_VIEW;
+const uint FULL_HEIGHT = CHUNK_SIZE * TERRAIN_HEIGHT;
+const uint FULL_HORIZONTAL_SLICE = FULL_AXIS * FULL_AXIS;
+
 const uint MAX_AXIS_SURFACE_TYPE = 16;
 const float AXIS_SURFACE_OFFSET = 1.0f / (MAX_AXIS_SURFACE_TYPE);
 const uint MAX_SUFACE_TYPE = MAX_AXIS_SURFACE_TYPE * MAX_AXIS_SURFACE_TYPE;
@@ -62,7 +66,7 @@ void main()
     {
         case 0: //front
         vertexPos = ivec3(lPos.x, 1 - lPos.y, 1);
-        out_uv = ((surfaceId + ivec2(0, 1)) * AXIS_SURFACE_OFFSET) + (vec2(1, -1) * AXIS_SURFACE_OFFSET * lPos);
+        out_uv = ((surfaceId + ivec2(0, 1)) * AXIS_SURFACE_OFFSET) + (ivec2(1, -1) * AXIS_SURFACE_OFFSET * lPos);
         break;
         case 1: //back
         vertexPos = ivec3(lPos, 0);
@@ -74,7 +78,7 @@ void main()
         break;
         case 3: //left
         vertexPos = ivec3(0, lPos.y, 1 - lPos.x);
-        out_uv = ((surfaceId + ivec2(1, 0)) * AXIS_SURFACE_OFFSET) + (vec2(-1, 1) * AXIS_SURFACE_OFFSET * lPos);
+        out_uv = ((surfaceId + ivec2(1, 0)) * AXIS_SURFACE_OFFSET) + (ivec2(-1, 1) * AXIS_SURFACE_OFFSET * lPos);
         break;
         case 4: //top
         vertexPos = ivec3(lPos.x, 1, lPos.y);

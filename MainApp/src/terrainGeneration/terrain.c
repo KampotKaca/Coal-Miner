@@ -224,12 +224,12 @@ static void CreateChunkFaces(const unsigned int chunk[3])
 				unsigned char faceMask = 0;
 				
 				//region define faces
-				faceMask |= (z == FULL_AXIS_SIZE - 1 || voxelTerrain.cells[cubeId + 1] == BLOCK_EMPTY) << 5;                         //front
-				faceMask |= (z == 0 || voxelTerrain.cells[cubeId - 1] == BLOCK_EMPTY) << 4;                                          //back
-				faceMask |= (x == FULL_AXIS_SIZE - 1 || voxelTerrain.cells[cubeId + FULL_AXIS_SIZE] == BLOCK_EMPTY) << 3;            //right
-				faceMask |= (x == 0 || voxelTerrain.cells[cubeId - FULL_AXIS_SIZE] == BLOCK_EMPTY) << 2;                             //left
-				faceMask |= (y == FULL_VERTICAL_SIZE - 1 || voxelTerrain.cells[cubeId + FULL_HORIZONTAL_SLICE] == BLOCK_EMPTY) << 1; //top
-				faceMask |= (y == 0 || voxelTerrain.cells[cubeId - FULL_HORIZONTAL_SLICE] == BLOCK_EMPTY);                           //bottom
+				if(z < FULL_AXIS_SIZE - 1) faceMask |= (voxelTerrain.cells[cubeId + 1] == BLOCK_EMPTY) << 5;                         //front
+				if(z > 0) faceMask |= (voxelTerrain.cells[cubeId - 1] == BLOCK_EMPTY) << 4;                                          //back
+				if(x < FULL_AXIS_SIZE - 1) faceMask |= (voxelTerrain.cells[cubeId + FULL_AXIS_SIZE] == BLOCK_EMPTY) << 3;            //right
+				if(x > 0) faceMask |= (voxelTerrain.cells[cubeId - FULL_AXIS_SIZE] == BLOCK_EMPTY) << 2;                             //left
+				if(y < FULL_VERTICAL_SIZE - 1) faceMask |= (voxelTerrain.cells[cubeId + FULL_HORIZONTAL_SLICE] == BLOCK_EMPTY) << 1; //top
+				if(y > 0) faceMask |= (voxelTerrain.cells[cubeId - FULL_HORIZONTAL_SLICE] == BLOCK_EMPTY);                           //bottom
 				//endregion
 
 				if(faceMask == 0) continue;
@@ -290,6 +290,7 @@ static void CreateChunkFaces(const unsigned int chunk[3])
 #undef RECT_FACE
 
 	voxelTerrain.faceCounts[chunkId] = faceCount;
+	printf("fullSize: %u, usedSize: %i\n", (unsigned int)sizeof(VoxelBuffer) / (4 * TERRAIN_CHUNK_COUNT), faceCount);
 }
 
 static void GeneratePreChunk(const unsigned int chunkId[3], const unsigned int destination[3])
@@ -330,20 +331,42 @@ static void GeneratePreChunk(const unsigned int chunkId[3], const unsigned int d
 				
 				if(caveValue >= TERRAIN_CAVE_EDGE)
 				{
-					caveValue -= TERRAIN_CAVE_EDGE;
-					caveValue = (caveValue + 1) * .5f;
-					
+					caveValue = (caveValue - TERRAIN_CAVE_EDGE) / (1 - TERRAIN_CAVE_EDGE);
+
 					unsigned int id = y * FULL_HORIZONTAL_SLICE + xzId;
 					voxelTerrain.cells[id] = get_block_type(caveValue);
 				}
 			}
 		}
 	}
+
+#undef SET_CHUNK
 }
 
 static void GeneratePostChunk(const unsigned int chunkId[3], const unsigned int destination[3])
 {
+	unsigned int xStart = destination[0] * TERRAIN_CHUNK_SIZE, xEnd = xStart + TERRAIN_CHUNK_SIZE;
+	unsigned int yStart = destination[1] * TERRAIN_CHUNK_SIZE, yEnd = yStart + TERRAIN_CHUNK_SIZE;
+	unsigned int zStart = destination[2] * TERRAIN_CHUNK_SIZE, zEnd = zStart + TERRAIN_CHUNK_SIZE;
 
+	for (unsigned int x = xStart; x < xEnd; ++x)
+	{
+		for (unsigned int z = zStart; z < zEnd; ++z)
+		{
+			unsigned int xzId = x * FULL_AXIS_SIZE + z;
+			unsigned int maxY = voxelTerrain.heightMap[x * FULL_AXIS_SIZE + z];
+			unsigned int yLimit = glm_imin((int)yEnd, (int)maxY);
+
+			for (unsigned int y = yStart; y <= yLimit; ++y)
+			{
+				unsigned int id = y * FULL_HORIZONTAL_SLICE + xzId;
+				if(voxelTerrain.cells[id] == BLOCK_EMPTY) continue;
+
+				if(y == maxY) voxelTerrain.cells[id] = BLOCK_GRASS;
+				else if(maxY - y < 3) voxelTerrain.cells[id] = BLOCK_DIRT;
+			}
+		}
+	}
 }
 
 static void GenerateHeightMap(const unsigned int chunkId[2], const unsigned int destination[2])

@@ -13,17 +13,17 @@ BlockData blockData[BLOCK_GEN_COUNT] =
 {
 	(BlockData)
 	{
-		0.85f,
+		0.5f,
 		BLOCK_STONE,
 	},
 	(BlockData)
 	{
-		0.1f,
+		0.3f,
 		BLOCK_DIRT,
 	},
 	(BlockData)
 	{
-		0.05f,
+		0.2f,
 		BLOCK_IRON,
 	}
 };
