@@ -58,10 +58,17 @@ void update_time()
 
 void cm_sleep(double sleepTime)
 {
-	struct timespec req, rem;
+#ifdef _WIN32
+	timeBeginPeriod(1);
+#endif
+	struct timespec req;
 	req.tv_sec = (time_t)sleepTime;
-	req.tv_nsec = (long)((double)req.tv_sec * 1e9);
-	nanosleep(&req, &rem);
+	req.tv_nsec = (long)((sleepTime - (double)req.tv_sec) * 1e9);
+	nanosleep(&req, NULL);
+
+#ifdef _WIN32
+	timeEndPeriod(1);
+#endif
 }
 
 float cm_delta_time_f() { return (float)TIME.deltaTime; }
