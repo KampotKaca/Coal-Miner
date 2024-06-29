@@ -396,21 +396,28 @@ void unload_shader_program(unsigned int id)
 	glDeleteProgram(id);
 }
 
-Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, const void* data, bool isStatic)
+Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, const void* data)
 {
 	Ssbo ssbo = {0};
 	ssbo.bindingId = bindingId;
 	ssbo.dataSize = dataSize;
-	ssbo.isStatic = isStatic;
-	ssbo.data = data;
+	ssbo.isStatic = data != NULL;
 
 	glGenBuffers(1, &ssbo.id);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo.id);
 
-	if(ssbo.isStatic) glBufferData(GL_SHADER_STORAGE_BUFFER, ssbo.dataSize, ssbo.data, GL_STATIC_DRAW);
-	else glBufferData(GL_SHADER_STORAGE_BUFFER, ssbo.dataSize, ssbo.data, GL_DYNAMIC_DRAW);
+	if(ssbo.isStatic) glBufferData(GL_SHADER_STORAGE_BUFFER, ssbo.dataSize, data, GL_STATIC_DRAW);
+	else glBufferData(GL_SHADER_STORAGE_BUFFER, ssbo.dataSize, data, GL_DYNAMIC_DRAW);
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, ssbo.bindingId, ssbo.id); // Bind to binding point 0
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+	return ssbo;
+}
+
+void cm_upload_ssbo(Ssbo ssbo, unsigned int offset, unsigned int size, const void* data)
+{
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo.id);
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, offset, size, data);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 

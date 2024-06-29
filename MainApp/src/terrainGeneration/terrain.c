@@ -13,28 +13,29 @@
 
 typedef enum
 {
-	CHUNK_READY,
+	CHUNK_CREATED,
 	CHUNK_GENERATING,
-	CHUNK_REQUIRES_REDRAW,
-	CHUNK_REDRAWING,
+	CHUNK_DRAWING,
+	CHUNK_REQUIRES_UPLOAD,
+	CHUNK_READY,
 }ChunkState;
-
-typedef struct
-{
-	unsigned int voxelFaces[TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT];
-}VoxelBuffer;
 
 typedef struct {
 	unsigned int chunkId;
 	unsigned int chunk[3];
 } UniformData;
 
-typedef struct
+typedef struct TerrainChunk
 {
 	ChunkState state;
-	unsigned int faceCount;
+	unsigned short faceCount;
+	bool waitingForResponse;
+	bool isAlive;
 	unsigned int id[3];
-} ChunkData;
+	
+	unsigned int* buffer;
+	unsigned char* cells;
+}TerrainChunk;
 
 typedef struct
 {
@@ -44,18 +45,22 @@ typedef struct
 	fnl_state heightNoise;
 	fnl_state caveNoise;
 
-//	ThreadPool pool;
+	ThreadPool* pool;
 	
 	Shader shader;
 	Texture textures[3];
 
 	Vao quadVao;
 	Ssbo ssbo;
-	VoxelBuffer voxelBuffer;
+	
+	unsigned int* buffers[TERRAIN_CHUNK_COUNT];
 	
 	unsigned char cells[TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT];
 	unsigned char heightMap[FULL_HORIZONTAL_SLICE];
-	bool chunksChanged[TERRAIN_CHUNK_COUNT];
+	bool chunkIsWaiting[TERRAIN_CHUNK_COUNT];
+	bool verticalIsLoaded[TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE];
+	bool chunkIsReady[TERRAIN_CHUNK_COUNT];
+	bool chunkNeedsUpload[TERRAIN_CHUNK_COUNT];
 	unsigned short faceCounts[TERRAIN_CHUNK_COUNT];
 }VoxelTerrain;
 
@@ -68,11 +73,25 @@ static void GeneratePreChunk(const unsigned int chunkId[3], const unsigned int d
 static void GeneratePostChunk(const unsigned int chunkId[3], const unsigned int destination[3]);
 static void GenerateHeightMap(const unsigned int chunkId[2], const unsigned int destination[2]);
 
-static void T_GenerateHeightMap(void* args);
+static void T_GenerateVerticalNoise(void* args);
+static void T_OnVerticalGenerationFinished(void* args);
 
 static void CreateChunkFaces(const unsigned int chunk[3]);
 static void PassTerrainDataToShader(UniformData* data);
 static unsigned int GetChunkId(const unsigned int id[3]);
+static bool AllChunksAreLoaded();
+static void SendVerticalJob(unsigned int x, unsigned int z);
+
+static void SendFaceCreationJob(const unsigned int chunk[3]);
+static void T_CreateChunkFaces(void* args);
+static void T_ChunkFacesCreationFinished(void* args);
+
+static void SendVerticalFaceCreationJob(const unsigned int chunk[2]);
+static void T_CreateChunkFacesVertical(void* args);
+static void T_ChunkFacesVerticalCreationFinished(void* args);
+
+static TerrainChunk CreateChunk(const unsigned int id[3]);
+static void DestroyChunk(TerrainChunk* chunk);
 
 //region Callback Functions
 void load_terrain()
@@ -81,44 +100,17 @@ void load_terrain()
 	CreateShader();
 	InitNoise();
 	
-//	voxelTerrain.pool = threadpool_create(4);
+	for (int i = 0; i < TERRAIN_CHUNK_COUNT; ++i)
+		voxelTerrain.buffers[i] = CM_MALLOC(TERRAIN_CHUNK_CUBE_COUNT * sizeof(unsigned int));
 	
-	for (int i = 0; i < TERRAIN_CHUNK_COUNT; ++i) voxelTerrain.chunksChanged[i] = true;
+	voxelTerrain.quadVao = cm_get_unit_quad();
+	voxelTerrain.ssbo = cm_load_ssbo(64, sizeof(unsigned int) * TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT, NULL);
+	
+	voxelTerrain.pool = cm_create_thread_pool(4);
 	
 	for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 		for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
-		{
-//			ThreadJob job = {0};
-//			job.arg = (unsigned int[]){ x,z,x,z };
-//			job.job = (void*)(T_GenerateHeightMap);
-//			job.argBufferSize = 4 * sizeof(unsigned int);
-//			job.duplicateArgs = true;
-//			threadpool_add_work(&voxelTerrain.pool, job);
-		}
-
-	printf("Till Work\n");
-
-//	threadpool_wait(&voxelTerrain.pool);
-
-	printf("Added Work\n");
-	
-//	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
-//		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
-//			for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
-//				GeneratePreChunk((unsigned int[]) {x, y, z}, (unsigned int[]) {x, y, z});
-//
-//	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
-//		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
-//			for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
-//				GeneratePostChunk((unsigned int[]) {x, y, z}, (unsigned int[]) {x, y, z});
-//
-//	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
-//		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
-//			for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
-//				CreateChunkFaces((unsigned int[]){x, y, z});
-//
-//	voxelTerrain.quadVao = cm_get_unit_quad();
-//	voxelTerrain.ssbo = cm_load_ssbo(64, sizeof(VoxelBuffer), &voxelTerrain.voxelBuffer, false);
+			SendVerticalJob(x, z);
 }
 
 void update_terrain()
@@ -136,6 +128,18 @@ void update_terrain()
 
 void draw_terrain()
 {
+	if(AllChunksAreLoaded())
+	{
+		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
+			for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
+			{
+				unsigned int id[2] = {x, z};
+				unsigned int chunkId = GetChunkId((unsigned int[]){x, 0, z});
+				if(!voxelTerrain.chunkIsReady[chunkId] && !voxelTerrain.chunkIsWaiting[chunkId])
+					SendVerticalFaceCreationJob(id);
+			}
+	}
+	
 	cm_begin_shader_mode(voxelTerrain.shader);
 	
 	for (int i = 0; i < 4; ++i)
@@ -145,24 +149,39 @@ void draw_terrain()
 	cm_set_texture(voxelTerrain.u_surfaceTex + 5, voxelTerrain.textures[2].id, 5);
 
 	UniformData data = {0};
-
-	for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
+	bool shouldUpload = true;
+	
+	for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 	{
-		for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
+		for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
 		{
-			for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
+			unsigned int uploadCount = 0;
+			for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
 			{
 				data.chunk[0] = x;
 				data.chunk[1] = y;
 				data.chunk[2] = z;
-				data.chunkId = GetChunkId((unsigned int[]){x, y, z});
-
-				if(voxelTerrain.faceCounts[data.chunkId] > 0)
+				data.chunkId = GetChunkId(data.chunk);
+				
+				if(!voxelTerrain.chunkIsWaiting[data.chunkId] &&
+				   voxelTerrain.chunkIsReady[data.chunkId] &&
+				   voxelTerrain.faceCounts[data.chunkId] > 0)
 				{
+					if(voxelTerrain.chunkNeedsUpload[data.chunkId])
+					{
+						if(!shouldUpload) continue;
+						cm_upload_ssbo(voxelTerrain.ssbo, data.chunkId * TERRAIN_CHUNK_CUBE_COUNT * sizeof(unsigned int),
+						               voxelTerrain.faceCounts[data.chunkId] * sizeof(unsigned int), voxelTerrain.buffers[data.chunkId]);
+						voxelTerrain.chunkNeedsUpload[data.chunkId] = false;
+						uploadCount++;
+					}
+					
 					PassTerrainDataToShader(&data);
 					cm_draw_instanced_vao(voxelTerrain.quadVao, CM_TRIANGLES, voxelTerrain.faceCounts[data.chunkId]);
 				}
 			}
+			
+			if(uploadCount > 0) shouldUpload = false;
 		}
 	}
 
@@ -171,7 +190,14 @@ void draw_terrain()
 
 void dispose_terrain()
 {
-//	threadpool_destroy(&voxelTerrain.pool);
+	for (int i = 0; i < TERRAIN_CHUNK_COUNT; ++i)
+	{
+		CM_FREE(voxelTerrain.buffers[i]);
+		voxelTerrain.buffers[i] = NULL;
+	}
+	
+	cm_destroy_thread_pool(voxelTerrain.pool);
+	voxelTerrain.pool = NULL;
 	for (int i = 0; i < 3; ++i) cm_unload_texture(voxelTerrain.textures[i]);
 
 	cm_unload_ssbo(voxelTerrain.ssbo);
@@ -221,16 +247,92 @@ static void InitNoise()
 	voxelTerrain.caveNoise.frequency = TERRAIN_HEIGHT_FREQUENCY;
 }
 
+static void SendFaceCreationJob(const unsigned int chunk[3])
+{
+	unsigned int chunkId = GetChunkId(chunk);
+	voxelTerrain.chunkIsWaiting[chunkId] = true;
+	voxelTerrain.faceCounts[chunkId] = 0;
+	
+	unsigned int* args = CM_MALLOC(3 * sizeof(unsigned int));
+	args[0] = chunk[0];
+	args[1] = chunk[1];
+	args[2] = chunk[2];
+
+	ThreadJob job = {0};
+	job.args = args;
+	job.job = T_CreateChunkFaces;
+	job.callbackJob = T_ChunkFacesCreationFinished;
+	cm_submit_job(voxelTerrain.pool, job);
+}
+
+static void SendVerticalFaceCreationJob(const unsigned int chunk[2])
+{
+	unsigned int* args = CM_MALLOC(2 * sizeof(unsigned int));
+	args[0] = chunk[0];
+	args[1] = chunk[1];
+	
+	ThreadJob job = {0};
+	job.args = args;
+	job.job = T_CreateChunkFacesVertical;
+	job.callbackJob = T_ChunkFacesVerticalCreationFinished;
+	
+	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+	{
+		unsigned int chunkId = GetChunkId((unsigned int[]){ chunk[0], y, chunk[1] });
+		voxelTerrain.chunkIsWaiting[chunkId] = true;
+		voxelTerrain.faceCounts[chunkId] = 0;
+	}
+	
+	cm_submit_job(voxelTerrain.pool, job);
+}
+
+static void T_CreateChunkFacesVertical(void* args)
+{
+	unsigned int* cArgs = (unsigned int*)args;
+	
+	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+		CreateChunkFaces((unsigned int[]){ cArgs[0], y, cArgs[1] });
+}
+
+static void T_ChunkFacesVerticalCreationFinished(void* args)
+{
+	unsigned int* cArgs = (unsigned int*)args;
+	
+	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+	{
+		unsigned int chunkId = GetChunkId((unsigned int[]){ cArgs[0], y, cArgs[1] });
+		voxelTerrain.chunkIsWaiting[chunkId] = false;
+		voxelTerrain.chunkIsReady[chunkId] = true;
+		voxelTerrain.chunkNeedsUpload[chunkId] = true;
+	}
+}
+
+static void T_CreateChunkFaces(void* args)
+{
+	unsigned int* cArgs = (unsigned int*)args;
+	CreateChunkFaces((unsigned int[]){ cArgs[0], cArgs[1], cArgs[2] });
+}
+
+static void T_ChunkFacesCreationFinished(void* args)
+{
+	unsigned int* cArgs = (unsigned int*)args;
+	unsigned int chunkId = GetChunkId(cArgs);
+	voxelTerrain.chunkIsWaiting[chunkId] = false;
+	voxelTerrain.chunkIsReady[chunkId] = true;
+	voxelTerrain.chunkNeedsUpload[chunkId] = true;
+}
+
 static void CreateChunkFaces(const unsigned int chunk[3])
 {
 	unsigned int chunkId = GetChunkId(chunk);
-
+	
 	unsigned int xStart = chunk[0] * TERRAIN_CHUNK_SIZE, xEnd = xStart + TERRAIN_CHUNK_SIZE;
 	unsigned int yStart = chunk[1] * TERRAIN_CHUNK_SIZE, yEnd = yStart + TERRAIN_CHUNK_SIZE;
 	unsigned int zStart = chunk[2] * TERRAIN_CHUNK_SIZE, zEnd = zStart + TERRAIN_CHUNK_SIZE;
 
 	unsigned int faceCount = 0;
-	unsigned int faceOffset = chunkId * TERRAIN_CHUNK_CUBE_COUNT;
+	
+	unsigned int* buffer = voxelTerrain.buffers[chunkId];
 	
 	for (unsigned int y = yStart; y < yEnd; y++)
 	{
@@ -267,41 +369,41 @@ static void CreateChunkFaces(const unsigned int chunk[3])
 				//front face
 				if((faceMask & 0b100000) > 0)
 				{
-					voxelTerrain.voxelBuffer.voxelFaces[faceOffset + faceCount] = blockIndex | 0;
+					buffer[faceCount] = blockIndex | 0;
 					faceCount++;
 				}
 
 				//back face
 				if((faceMask & 0b010000) > 0)
 				{
-					voxelTerrain.voxelBuffer.voxelFaces[faceOffset + faceCount] = blockIndex | 1;
+					buffer[faceCount] = blockIndex | 1;
 					faceCount++;
 				}
 
 				//right face
 				if((faceMask & 0b001000) > 0)
 				{
-					voxelTerrain.voxelBuffer.voxelFaces[faceOffset + faceCount] = blockIndex | 2;
+					buffer[faceCount] = blockIndex | 2;
 					faceCount++;
 				}
 
 				//left face
 				if((faceMask & 0b000100) > 0)
 				{
-					voxelTerrain.voxelBuffer.voxelFaces[faceOffset + faceCount] = blockIndex | 3;
+					buffer[faceCount] = blockIndex | 3;
 					faceCount++;
 				}
 
 				//top face
 				if((faceMask & 0b000010) > 0)
 				{
-					voxelTerrain.voxelBuffer.voxelFaces[faceOffset + faceCount] = blockIndex | 4;
+					buffer[faceCount] = blockIndex | 4;
 					faceCount++;
 				}
 
 				if((faceMask & 0b000001) > 0)
 				{
-					voxelTerrain.voxelBuffer.voxelFaces[faceOffset + faceCount] = blockIndex | 5;
+					buffer[faceCount] = blockIndex | 5;
 					faceCount++;
 				}
 			}
@@ -309,9 +411,8 @@ static void CreateChunkFaces(const unsigned int chunk[3])
 	}
 
 #undef RECT_FACE
-
+	
 	voxelTerrain.faceCounts[chunkId] = faceCount;
-	printf("fullSize: %u, usedSize: %i\n", (unsigned int)sizeof(VoxelBuffer) / (4 * TERRAIN_CHUNK_COUNT), faceCount);
 }
 
 static void GeneratePreChunk(const unsigned int chunkId[3], const unsigned int destination[3])
@@ -390,10 +491,50 @@ static void GeneratePostChunk(const unsigned int chunkId[3], const unsigned int 
 	}
 }
 
-static void T_GenerateHeightMap(void* args)
+static void SendVerticalJob(unsigned int x, unsigned int z)
+{
+	voxelTerrain.verticalIsLoaded[x * TERRAIN_VIEW_RANGE + z] = false;
+	
+	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+	{
+		voxelTerrain.chunkIsReady[GetChunkId((unsigned int[]){x, y, z})] = false;
+		voxelTerrain.chunkIsWaiting[GetChunkId((unsigned int[]){x, y, z})] = true;
+	}
+	
+	unsigned int* args = CM_MALLOC(4 * sizeof(unsigned int));
+	args[0] = x;
+	args[1] = z;
+	args[2] = x;
+	args[3] = z;
+	ThreadJob job = {0};
+	job.args = args;
+	job.job = T_GenerateVerticalNoise;
+	job.callbackJob = T_OnVerticalGenerationFinished;
+	cm_submit_job(voxelTerrain.pool, job);
+}
+
+static void T_GenerateVerticalNoise(void* args)
 {
 	unsigned int* cArgs = (unsigned int*)args;
 	GenerateHeightMap((unsigned int[2]){cArgs[0], cArgs[1]}, (unsigned int[2]){cArgs[2], cArgs[3]});
+	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+	{
+		GeneratePreChunk((unsigned int[3]){cArgs[0], y, cArgs[1]}, (unsigned int[3]){cArgs[2], y, cArgs[3]});
+		GeneratePostChunk((unsigned int[3]){cArgs[0], y, cArgs[1]}, (unsigned int[3]){cArgs[2], y, cArgs[3]});
+	}
+}
+
+static void T_OnVerticalGenerationFinished(void* args)
+{
+	unsigned int* cArgs = (unsigned int*)args;
+	
+	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+	{
+		unsigned int id = GetChunkId((unsigned int[]){cArgs[2], y, cArgs[3]});
+		voxelTerrain.chunkIsWaiting[id] = false;
+	}
+	
+	voxelTerrain.verticalIsLoaded[cArgs[2] * TERRAIN_VIEW_RANGE + cArgs[3]] = true;
 }
 
 static void GenerateHeightMap(const unsigned int chunkId[2], const unsigned int destination[2])
@@ -428,6 +569,43 @@ static void PassTerrainDataToShader(UniformData* data)
 static unsigned int GetChunkId(const unsigned int id[3])
 {
 	return id[1] * TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE + id[0] * TERRAIN_VIEW_RANGE + id[2];
+}
+
+static TerrainChunk CreateChunk(const unsigned int id[3])
+{
+	TerrainChunk chunk =
+	{
+		.faceCount = 0,
+		.buffer = CM_MALLOC(TERRAIN_CHUNK_CUBE_COUNT * sizeof(unsigned int)),
+		.cells = CM_MALLOC(TERRAIN_CHUNK_CUBE_COUNT),
+		.state = CHUNK_CREATED,
+		.id = {0},
+		.waitingForResponse = false,
+		.isAlive = true
+	};
+	
+	chunk.id[0] = id[0];
+	chunk.id[1] = id[1];
+	chunk.id[2] = id[2];
+	
+	return chunk;
+}
+
+static void DestroyChunk(TerrainChunk* chunk)
+{
+	if(!chunk->isAlive) return;
+	chunk->isAlive = false;
+	CM_FREE(chunk->cells);
+	CM_FREE(chunk->buffer);
+}
+
+static bool AllChunksAreLoaded()
+{
+	bool isLoaded = true;
+	for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
+		for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
+			isLoaded &= voxelTerrain.verticalIsLoaded[x * TERRAIN_VIEW_RANGE + z];
+	return isLoaded;
 }
 
 //endregion

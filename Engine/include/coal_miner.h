@@ -25,6 +25,7 @@
 #include <cglm/cglm.h>
 #include <cglm/call.h>
 #include <cglm/quat.h>
+#include "threadpool/cm_threadpool.h"
 
 typedef char Path[MAX_PATH_SIZE];
 
@@ -368,7 +369,6 @@ typedef struct Ssbo
 	unsigned int bindingId;
 	unsigned int dataSize;
 	bool isStatic;
-	const void* data;
 }Ssbo;
 
 typedef struct VaoAttribute
@@ -467,7 +467,8 @@ extern void cm_end_mode_3d();
 //endregion
 
 //region GL Buffers
-extern Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, const void* data, bool isStatic);
+extern Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, const void* data);
+extern void cm_upload_ssbo(Ssbo ssbo, unsigned int offset, unsigned int size, const void* data);
 extern void cm_unload_ssbo(Ssbo ssbo);
 extern bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, const void* data);
 extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo);
@@ -536,6 +537,14 @@ extern void cm_get_touch_position(int index, float* position);   // Get touch po
 extern int cm_get_touch_point_id(int index);                     // Get touch point identifier for given index
 extern int cm_get_touch_point_count(void);                       // Get number of touch points
 //endregion
+
+//endregion
+
+//region ThreadPool
+
+extern ThreadPool* cm_create_thread_pool(unsigned int numThreads);
+extern void cm_submit_job(ThreadPool* pool, ThreadJob job);
+extern void cm_destroy_thread_pool(ThreadPool* pool);
 
 //endregion
 
