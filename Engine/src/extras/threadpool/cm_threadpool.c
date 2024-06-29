@@ -38,8 +38,23 @@ void cm_submit_job(ThreadPool* pool, ThreadJob job)
 
 void cm_destroy_thread_pool(ThreadPool* pool)
 {
+	pthread_mutex_lock(&pool->lock);
+	
 	pool->isAlive = false;
-	pthread_cond_signal(&pool->signal);
+	pthread_cond_broadcast(&pool->signal);
+	
+	pthread_mutex_unlock(&pool->lock);
+	
+	for (int i = 0; i < pool->aliveThreadCount; ++i)
+		pthread_join(pool->threads[i], NULL);
+	
+	for (int i = 0; i < pool->jobCount; ++i)
+		CM_FREE(pool->jobs[i].args);
+	
+	pthread_mutex_destroy(&pool->lock);
+	pthread_cond_destroy(&pool->signal);
+	
+	CM_FREE(pool);
 }
 
 static void* ExecuteJob(void* args)
@@ -51,13 +66,11 @@ static void* ExecuteJob(void* args)
 		while(pool->jobCount == 0)
 		{
 			pthread_cond_wait(&pool->signal, &pool->lock);
-			if(!pool->isAlive) break;
-		}
-		
-		if(!pool->isAlive)
-		{
-			pthread_mutex_unlock(&pool->lock);
-			break;
+			if(!pool->isAlive)
+			{
+				pthread_mutex_unlock(&pool->lock);
+				return NULL;
+			}
 		}
 		
 		pool->workingThreads++;
@@ -71,39 +84,18 @@ static void* ExecuteJob(void* args)
 		{
 			job.job(job.args);
 			
-			if(job.callbackJob != NULL)
+			pthread_mutex_lock(&pool->lock);
+			
+			if(job.callbackJob != NULL) job.callbackJob(job.args);
+			pool->workingThreads--;
+			if(job.args != NULL)
 			{
-				pthread_mutex_lock(&pool->lock);
-				job.callbackJob(job.args);
-				pthread_mutex_unlock(&pool->lock);
+				CM_FREE(job.args);
+				job.args = NULL;
 			}
 			
-			CM_FREE(job.args);
+			pthread_mutex_unlock(&pool->lock);
 		}
-		
-		pthread_mutex_lock(&pool->lock);
-		pool->workingThreads--;
-		pthread_mutex_unlock(&pool->lock);
-	}
-	
-	pthread_mutex_lock(&pool->lock);
-	pool->aliveThreadCount--;
-	bool destroyPool = false;
-	if(pool->aliveThreadCount == 0)
-	{
-		destroyPool = true;
-		pool->jobCount = 0;
-	}
-	
-	pthread_mutex_unlock(&pool->lock);
-	
-	if(destroyPool)
-	{
-		pthread_mutex_destroy(&pool->lock);
-		pthread_cond_destroy(&pool->signal);
-		
-		CM_FREE(pool);
-		pool = NULL;
 	}
 	
 	return NULL;

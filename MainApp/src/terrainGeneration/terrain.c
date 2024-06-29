@@ -106,7 +106,7 @@ void load_terrain()
 	voxelTerrain.quadVao = cm_get_unit_quad();
 	voxelTerrain.ssbo = cm_load_ssbo(64, sizeof(unsigned int) * TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT, NULL);
 	
-	voxelTerrain.pool = cm_create_thread_pool(4);
+	voxelTerrain.pool = cm_create_thread_pool(8);
 	
 	for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 		for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
