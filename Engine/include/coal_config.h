@@ -17,8 +17,6 @@
 #define APPLICATION_EXIT_KEY         256
 #define MAX_PATH_SIZE                256
 #define MAX_NUM_APPLICATION_ICONS      8
-#define MAX_SHADER_LOCATIONS          32
-#define MAX_MESH_VERTEX_BUFFERS        7
 #define MAX_NUM_UBOS                  16
 #define FRAME_RATE_RECORD_RATE        60
 
