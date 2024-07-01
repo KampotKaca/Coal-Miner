@@ -111,7 +111,7 @@ void load_terrain()
 	voxelTerrain.quadVao = cm_get_unit_quad();
 	voxelTerrain.ssbo = cm_load_ssbo(64, sizeof(unsigned int) * TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT, NULL);
 	
-	voxelTerrain.pool = cm_create_thread_pool(8);
+	voxelTerrain.pool = cm_create_thread_pool(TERRAIN_NUM_WORKER_THREADS);
 	
 	for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 		for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
@@ -138,9 +138,30 @@ void draw_terrain()
 		{
 			if(SurroundsAreLoaded(x, z))
 			{
-				unsigned int chunkId = GetChunkId(x, 0, z);
-				if(voxelTerrain.chunks[chunkId].state == CHUNK_REQUIRES_FACES && !voxelTerrain.chunks[chunkId].waitingForResponse)
-					SendVerticalFaceCreationJob(x, z);
+				bool wholeVerticalNeedsFaces = true;
+				for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+				{
+					unsigned int chunkId = GetChunkId(x, y, z);
+					wholeVerticalNeedsFaces = wholeVerticalNeedsFaces &&
+					                          (voxelTerrain.chunks[chunkId].state == CHUNK_REQUIRES_FACES &&
+					                           !voxelTerrain.chunks[chunkId].waitingForResponse);
+				}
+				
+				if(wholeVerticalNeedsFaces)
+				{
+					unsigned int chunkId = GetChunkId(x, 0, z);
+					if(voxelTerrain.chunks[chunkId].state == CHUNK_REQUIRES_FACES && !voxelTerrain.chunks[chunkId].waitingForResponse)
+						SendVerticalFaceCreationJob(x, z);
+				}
+				else
+				{
+					for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+					{
+						unsigned int chunkId = GetChunkId(x, y, z);
+						if(voxelTerrain.chunks[chunkId].state == CHUNK_REQUIRES_FACES && !voxelTerrain.chunks[chunkId].waitingForResponse)
+							SendFaceCreationJob(x, y, z);
+					}
+				}
 			}
 		}
 	
@@ -153,13 +174,12 @@ void draw_terrain()
 	cm_set_texture(voxelTerrain.u_surfaceTex + 5, voxelTerrain.textures[2].id, 5);
 
 	UniformData data = {0};
-	bool shouldUpload = true;
+	int numUploadsLeft = TERRAIN_CHUNK_UPLOAD_LIMIT;
 	
 	for (unsigned int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 	{
 		for (unsigned int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
 		{
-			unsigned int uploadCount = 0;
 			for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
 			{
 				data.chunk[0] = x;
@@ -173,11 +193,11 @@ void draw_terrain()
 				{
 					if(chunk->state == CHUNK_REQUIRES_UPLOAD)
 					{
-						if(!shouldUpload) continue;
+						if(numUploadsLeft <= 0) continue;
 						cm_upload_ssbo(voxelTerrain.ssbo, data.chunkId * TERRAIN_CHUNK_CUBE_COUNT * sizeof(unsigned int),
 						               chunk->faceCount * sizeof(unsigned int), chunk->buffer);
 						chunk->state = CHUNK_READY_TO_DRAW;
-						uploadCount++;
+						numUploadsLeft--;
 					}
 					
 					if(chunk->state == CHUNK_READY_TO_DRAW)
@@ -188,7 +208,7 @@ void draw_terrain()
 				}
 			}
 			
-			if(uploadCount > 0) shouldUpload = false;
+//			if(uploadCount > 0) shouldUpload = false;
 		}
 	}
 
@@ -197,9 +217,9 @@ void draw_terrain()
 
 void dispose_terrain()
 {
+	cm_destroy_thread_pool(voxelTerrain.pool);
 	for (int i = 0; i < TERRAIN_CHUNK_COUNT; ++i) DestroyChunk(&voxelTerrain.chunks[i]);
 	
-	cm_destroy_thread_pool(voxelTerrain.pool);
 	voxelTerrain.pool = NULL;
 	for (int i = 0; i < 3; ++i) cm_unload_texture(voxelTerrain.textures[i]);
 
