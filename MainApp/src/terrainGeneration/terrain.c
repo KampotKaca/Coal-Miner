@@ -352,6 +352,68 @@ static void T_ChunkFacesCreationFinished(void* args)
 	voxelTerrain.chunks[chunkId].state = CHUNK_REQUIRES_UPLOAD;
 }
 
+static unsigned int GetBlockIndex(unsigned char currentCell,
+                                  unsigned int x, unsigned int y, unsigned int z)
+{
+	currentCell--;
+	unsigned int blockIndex = (currentCell / TERRAIN_MAX_AXIS_BLOCK_TYPES) << 4 |
+	                          (currentCell % TERRAIN_MAX_AXIS_BLOCK_TYPES);
+
+	blockIndex <<= 15;
+	blockIndex |= (x << 10) | (y << 5) | z;
+	blockIndex <<= 3;
+	return blockIndex;
+}
+
+static unsigned int AddBlockFaces(unsigned int* buffer, unsigned int fCount,
+								  unsigned char faceMask, unsigned int blockIndex)
+{
+	unsigned int faceCount = fCount;
+
+	//front face
+	if((faceMask & 0b100000) > 0)
+	{
+		buffer[faceCount] = blockIndex | 0;
+		faceCount++;
+	}
+
+	//back face
+	if((faceMask & 0b010000) > 0)
+	{
+		buffer[faceCount] = blockIndex | 1;
+		faceCount++;
+	}
+
+	//right face
+	if((faceMask & 0b001000) > 0)
+	{
+		buffer[faceCount] = blockIndex | 2;
+		faceCount++;
+	}
+
+	//left face
+	if((faceMask & 0b000100) > 0)
+	{
+		buffer[faceCount] = blockIndex | 3;
+		faceCount++;
+	}
+
+	//top face
+	if((faceMask & 0b000010) > 0)
+	{
+		buffer[faceCount] = blockIndex | 4;
+		faceCount++;
+	}
+
+	if((faceMask & 0b000001) > 0)
+	{
+		buffer[faceCount] = blockIndex | 5;
+		faceCount++;
+	}
+
+	return faceCount;
+}
+
 static void CreateChunkFaces(unsigned int xId, unsigned int yId, unsigned int zId)
 {
 	unsigned int faceCount = 0;
@@ -359,12 +421,26 @@ static void CreateChunkFaces(unsigned int xId, unsigned int yId, unsigned int zI
 	TerrainChunk* chunk = &voxelTerrain.chunks[chunkId];
 	unsigned int* buffer = chunk->buffer;
 	unsigned char* cells = chunk->cells;
-	
-	for (unsigned int y = 1; y < TERRAIN_CHUNK_SIZE - 1; y++)
+
+	unsigned char* frontChunkCells = NULL;
+	unsigned char* backChunkCells = NULL;
+	unsigned char* rightChunkCells = NULL;
+	unsigned char* leftChunkCells = NULL;
+	unsigned char* topChunkCells = NULL;
+	unsigned char* bottomChunkCells = NULL;
+
+	if(zId < TERRAIN_CHUNK_SIZE - 1) frontChunkCells = voxelTerrain.chunks[GetChunkId(xId, yId, zId + 1)].cells;
+	if(zId > 0) backChunkCells = voxelTerrain.chunks[GetChunkId(xId, yId, zId - 1)].cells;
+	if(xId < TERRAIN_CHUNK_SIZE - 1) rightChunkCells = voxelTerrain.chunks[GetChunkId(xId + 1, yId, zId)].cells;
+	if(xId > 0) leftChunkCells = voxelTerrain.chunks[GetChunkId(xId - 1, yId, zId)].cells;
+	if(yId < TERRAIN_CHUNK_SIZE - 1) topChunkCells = voxelTerrain.chunks[GetChunkId(xId, yId + 1, zId)].cells;
+	if(yId > 0) bottomChunkCells = voxelTerrain.chunks[GetChunkId(xId, yId - 1, zId)].cells;
+
+	for (unsigned int y = 0; y < TERRAIN_CHUNK_SIZE; y++)
 	{
-		for (unsigned int x = 1; x < TERRAIN_CHUNK_SIZE - 1; x++)
+		for (unsigned int x = 0; x < TERRAIN_CHUNK_SIZE; x++)
 		{
-			for (unsigned int z = 1; z < TERRAIN_CHUNK_SIZE - 1; z++)
+			for (unsigned int z = 0; z < TERRAIN_CHUNK_SIZE; z++)
 			{
 				unsigned int cubeId = y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z;
 				unsigned char currentCell = cells[cubeId];
@@ -373,64 +449,41 @@ static void CreateChunkFaces(unsigned int xId, unsigned int yId, unsigned int zI
 				unsigned char faceMask = 0;
 
 				//region define faces
-				if(z < TERRAIN_CHUNK_SIZE - 1) faceMask |= (cells[cubeId + 1] == BLOCK_EMPTY) << 5;                      //front
-				if(z > 0) faceMask |= (cells[cubeId - 1] == BLOCK_EMPTY) << 4;                                           //back
-				if(x < TERRAIN_CHUNK_SIZE - 1) faceMask |= (cells[cubeId + TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY) << 3;     //right
-				if(x > 0) faceMask |= (cells[cubeId - TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY) << 2;                          //left
-				if(y < TERRAIN_CHUNK_SIZE - 1) faceMask |= (cells[cubeId + CHUNK_HORIZONTAL_SLICE] == BLOCK_EMPTY) << 1; //top
-				if(y > 0) faceMask |= (cells[cubeId - CHUNK_HORIZONTAL_SLICE] == BLOCK_EMPTY);                           //bottom
+				//Front
+				if(z == TERRAIN_CHUNK_SIZE - 1)
+					faceMask |= (frontChunkCells != NULL && frontChunkCells[y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY) << 5;
+				else faceMask |= (cells[cubeId + 1] == BLOCK_EMPTY) << 5;
+
+				//Back
+				if(z == 0)
+					faceMask |= (backChunkCells != NULL && backChunkCells[y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + TERRAIN_CHUNK_SIZE - 1] == BLOCK_EMPTY) << 4;
+				else faceMask |= (cells[cubeId - 1] == BLOCK_EMPTY) << 4;
+
+				//Right
+				if(x == TERRAIN_CHUNK_SIZE - 1)
+					faceMask |= (rightChunkCells != NULL && rightChunkCells[y * CHUNK_HORIZONTAL_SLICE + z] == BLOCK_EMPTY) << 3;
+				else faceMask |= (cells[cubeId + TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY) << 3;
+
+				//Left
+				if(x == 0)
+					faceMask |= (leftChunkCells != NULL && leftChunkCells[y * CHUNK_HORIZONTAL_SLICE + (TERRAIN_CHUNK_SIZE - 1) * TERRAIN_CHUNK_SIZE + z] == BLOCK_EMPTY) << 2;
+				else faceMask |= (cells[cubeId - TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY) << 2;
+
+				//Top
+				if(y == TERRAIN_CHUNK_SIZE - 1)
+					faceMask |= (topChunkCells != NULL && topChunkCells[x * TERRAIN_CHUNK_SIZE + z] == BLOCK_EMPTY) << 1;
+				else faceMask |= (cells[cubeId + CHUNK_HORIZONTAL_SLICE] == BLOCK_EMPTY) << 1;
+
+				//Bottom
+				if(y == 0)
+					faceMask |= (bottomChunkCells != NULL && bottomChunkCells[(TERRAIN_CHUNK_SIZE - 1) * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z] == BLOCK_EMPTY);
+				else faceMask |= (cells[cubeId - CHUNK_HORIZONTAL_SLICE] == BLOCK_EMPTY);
+
 				//endregion
 
 				if(faceMask == 0) continue;
-				
-				currentCell--;
-				unsigned int blockIndex = (currentCell / TERRAIN_MAX_AXIS_BLOCK_TYPES) << 4 |
-										  (currentCell % TERRAIN_MAX_AXIS_BLOCK_TYPES);
 
-				blockIndex <<= 15;
-				blockIndex |= (x << 10) | (y << 5) | z;
-				blockIndex <<= 3;
-				
-				//front face
-				if((faceMask & 0b100000) > 0)
-				{
-					buffer[faceCount] = blockIndex | 0;
-					faceCount++;
-				}
-
-				//back face
-				if((faceMask & 0b010000) > 0)
-				{
-					buffer[faceCount] = blockIndex | 1;
-					faceCount++;
-				}
-
-				//right face
-				if((faceMask & 0b001000) > 0)
-				{
-					buffer[faceCount] = blockIndex | 2;
-					faceCount++;
-				}
-
-				//left face
-				if((faceMask & 0b000100) > 0)
-				{
-					buffer[faceCount] = blockIndex | 3;
-					faceCount++;
-				}
-
-				//top face
-				if((faceMask & 0b000010) > 0)
-				{
-					buffer[faceCount] = blockIndex | 4;
-					faceCount++;
-				}
-
-				if((faceMask & 0b000001) > 0)
-				{
-					buffer[faceCount] = blockIndex | 5;
-					faceCount++;
-				}
+				faceCount = AddBlockFaces(buffer, faceCount, faceMask, GetBlockIndex(currentCell, x, y, z));
 			}
 		}
 	}
