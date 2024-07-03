@@ -12,8 +12,8 @@ void game_awake()
 	load_grid();
 #endif
 
-	load_terrain();
 	load_camera();
+	load_terrain();
 	cm_disable_cursor();
 }
 

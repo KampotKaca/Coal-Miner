@@ -5,6 +5,8 @@ const uint TERRAIN_VIEW = 32;
 const uint CHUNK_SIZE = 32;
 const uint CHUNK_CUBE_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
+const int WORLD_EDGE = 100000 * int(CHUNK_SIZE);
+
 const uint FULL_AXIS = CHUNK_SIZE * TERRAIN_VIEW;
 const uint FULL_HEIGHT = CHUNK_SIZE * TERRAIN_HEIGHT;
 const uint FULL_HORIZONTAL_SLICE = FULL_AXIS * FULL_AXIS;
@@ -90,5 +92,5 @@ void main()
         break;
     }
 
-    gl_Position = cameraViewProjection * vec4(u_chunkIndex.xyz * CHUNK_SIZE + blockPos + vertexPos, 1.0);
+    gl_Position = cameraViewProjection * vec4(u_chunkIndex.xyz * CHUNK_SIZE - vec3(WORLD_EDGE, 0, WORLD_EDGE) + blockPos + vertexPos, 1.0);
 }

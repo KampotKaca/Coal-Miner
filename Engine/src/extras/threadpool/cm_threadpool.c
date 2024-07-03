@@ -25,11 +25,16 @@ ThreadPool* cm_create_thread_pool(unsigned int numThreads)
 	return pool;
 }
 
-void cm_submit_job(ThreadPool* pool, ThreadJob job)
+void cm_submit_job(ThreadPool* pool, ThreadJob job, bool asLast)
 {
 	pthread_mutex_lock(&pool->lock);
-	
-	pool->jobs[pool->jobCount] = job;
+
+	if(asLast || pool->jobCount == 0) pool->jobs[pool->jobCount] = job;
+	else
+	{
+		memcpy_s(&pool->jobs[1], sizeof(ThreadJob) * pool->jobCount, pool->jobs, sizeof(ThreadJob) * pool->jobCount);
+		pool->jobs[0] = job;
+	}
 	pool->jobCount++;
 	pthread_cond_signal(&pool->signal);
 	

@@ -543,7 +543,7 @@ extern int cm_get_touch_point_count(void);                       // Get number o
 //region ThreadPool
 
 extern ThreadPool* cm_create_thread_pool(unsigned int numThreads);
-extern void cm_submit_job(ThreadPool* pool, ThreadJob job);
+extern void cm_submit_job(ThreadPool* pool, ThreadJob job, bool asLast);
 extern void cm_destroy_thread_pool(ThreadPool* pool);
 
 //endregion
