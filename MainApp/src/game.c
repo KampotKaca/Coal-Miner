@@ -17,6 +17,11 @@ void game_awake()
 	cm_disable_cursor();
 }
 
+bool game_loading()
+{
+	return loading_terrain();
+}
+
 void game_update()
 {
 	update_terrain();

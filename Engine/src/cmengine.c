@@ -16,13 +16,15 @@ void coal_run(EngineData data)
 	create_window(data.windowWidth, data.windowHeight, data.title, data.iconLocation);
 
 	data.awakeCallback();
+	bool isLoading = true;
 
 	while (!window_should_close())
 	{
-		data.updateCallback();
+		if(isLoading) isLoading = data.loadingCallback();
+		if(!isLoading) data.updateCallback();
 
 		begin_draw();
-		data.renderCallback();
+		if(!isLoading) data.renderCallback();
 		end_draw();
 	}
 

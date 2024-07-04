@@ -34,7 +34,8 @@ typedef struct EngineData
 	const char* iconLocation;
 
 	void (*awakeCallback)();
-
+	
+	bool (*loadingCallback)();
 	void (*updateCallback)();
 	void (*renderCallback)();
 

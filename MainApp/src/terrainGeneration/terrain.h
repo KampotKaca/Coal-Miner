@@ -22,6 +22,7 @@ typedef enum GeneratedBlockTypes
 }GeneratedBlockTypes;
 
 void load_terrain();
+bool loading_terrain();
 void update_terrain();
 void draw_terrain();
 void dispose_terrain();

@@ -1,10 +1,11 @@
 #include "coal_helper.h"
+#include <stdio.h>
 
 void cm_spiral_loop(unsigned int width, unsigned int height,
 					void (*func)(unsigned int x, unsigned int y))
 {
-	int centerX = (int)width / 2;
-	int centerY = (int)height / 2;
+	int centerX = (int)((width - 1) / 2);
+	int centerY = (int)((height - 1) / 2);
 
 	// Start from the center
 	int x = centerX;
@@ -26,7 +27,7 @@ void cm_spiral_loop(unsigned int width, unsigned int height,
 		{
 			x += dirX[dir];
 			y += dirY[dir];
-
+			
 			// Ensure the coordinates are within bounds
 			if (x >= 0 && x < width && y >= 0 && y < height) func(x, y);
 		}

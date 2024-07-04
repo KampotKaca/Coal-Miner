@@ -12,6 +12,7 @@ int main(void)
 	data.iconLocation = iconLoc;
 
 	data.awakeCallback = game_awake;
+	data.loadingCallback = game_loading;
 	data.updateCallback = game_update;
 	data.renderCallback = game_render;
 	data.appCloseCallback = game_close;

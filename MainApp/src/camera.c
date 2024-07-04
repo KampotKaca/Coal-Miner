@@ -28,7 +28,10 @@ static void ThirdPersonCamera();
 void load_camera()
 {
 	camera.position[1] = 250;
-	camera.farPlane = 1000;
+	camera.direction[1] = -1;
+	camera.farPlane = 10000;
+	
+	glm_normalize(camera.direction);
 }
 
 void update_camera()

@@ -2,13 +2,19 @@
 #include "coal_miner.h"
 #include "config.h"
 
+typedef struct GridVertex
+{
+	unsigned int vertex;
+	unsigned int colorId;
+}GridVertex;
+
 typedef struct GridData
 {
 	Shader gridShader;
 	Vao gridVao;
 	int u_axis_offsetId, u_axis_sizeId, u_colorId;
 	
-	unsigned int vertices[((GRID_SIZE + 1) + (GRID_SIZE + 1)) * 2];
+	GridVertex vertices[((GRID_SIZE + 1) + (GRID_SIZE + 1)) * 2];
 }GridData;
 
 static void CreateShader();
@@ -22,10 +28,22 @@ void load_grid()
 	for (unsigned int x = 0; x <= GRID_SIZE; ++x)
 	{
 		unsigned int vertex = (x << 16);
-		gridData.vertices[id] = vertex;
+		
+		GridVertex vStart =
+		{
+			.vertex = vertex,
+			.colorId = 0
+		};
+		gridData.vertices[id] = vStart;
 		
 		vertex = (x << 16) | GRID_SIZE;
-		gridData.vertices[id + 1] = vertex;
+		
+		GridVertex vEnd =
+		{
+			.vertex = vertex,
+			.colorId = 1
+		};
+		gridData.vertices[id + 1] = vEnd;
 		
 		id += 2;
 	}
@@ -33,10 +51,21 @@ void load_grid()
 	for (unsigned int z = 0; z <= GRID_SIZE; ++z)
 	{
 		unsigned int vertex = z;
-		gridData.vertices[id] = vertex;
+		GridVertex vStart =
+		{
+			.vertex = vertex,
+			.colorId = 0
+		};
+		gridData.vertices[id] = vStart;
 		
 		vertex = (GRID_SIZE << 16) | z;
-		gridData.vertices[id + 1] = vertex;
+		GridVertex vEnd =
+		{
+			.vertex = vertex,
+			.colorId = 2
+		};
+		
+		gridData.vertices[id + 1] = vEnd;
 		
 		id += 2;
 	}
@@ -50,7 +79,7 @@ void draw_grid()
 	cm_begin_shader_mode(gridData.gridShader);
 
 	cm_set_uniform_f(gridData.u_axis_offsetId, -GRID_SIZE * 0.5f);
-	cm_set_uniform_f(gridData.u_axis_sizeId, GRID_AXIS_SIZE);
+	cm_set_uniform_f(gridData.u_axis_sizeId, TERRAIN_CHUNK_SIZE);
 	cm_set_uniform_vec4(gridData.u_colorId, GRID_COLOR);
 	
 	cm_draw_vao(gridData.gridVao, CM_LINES);
@@ -80,6 +109,7 @@ static void CreateVao()
 	VaoAttribute attributes[] =
 	{
 		{ 1, CM_UINT, false, 1 * sizeof(unsigned int) },
+		{ 1, CM_UINT, false, 1 * sizeof(unsigned int) },
 	};
 	
 	Vbo vbo = { 0 };
@@ -91,5 +121,5 @@ static void CreateVao()
 	Ebo ebo = {0};
 	vbo.ebo = ebo;
 	
-	gridData.gridVao = cm_load_vao(attributes, 1, vbo);
+	gridData.gridVao = cm_load_vao(attributes, 2, vbo);
 }
