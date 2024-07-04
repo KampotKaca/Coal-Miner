@@ -1,7 +1,7 @@
 #version 430 core
 
 const uint TERRAIN_HEIGHT = 8;
-const uint TERRAIN_VIEW = 32;
+const uint TERRAIN_VIEW = 16;
 const uint CHUNK_SIZE = 32;
 const uint CHUNK_CUBE_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 

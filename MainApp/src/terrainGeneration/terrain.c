@@ -94,6 +94,7 @@ static bool SurroundsAreLoaded(unsigned int xId, unsigned int zId);
 static void LoadChunks();
 
 static void SetupInitialChunks(Camera3D camera);
+static void ReloadChunks(Camera3D camera);
 
 //region Callback Functions
 void load_terrain()
@@ -135,6 +136,7 @@ void update_terrain()
 
 void draw_terrain()
 {
+//	ReloadChunks(get_camera());
 	LoadChunks();
 
 	cm_begin_shader_mode(voxelTerrain.shader);
@@ -262,18 +264,19 @@ static void InitNoise()
 	voxelTerrain.caveNoise.seed = rand() % 10000000;
 	voxelTerrain.caveNoise.fractal_type = FNL_FRACTAL_PINGPONG;
 	voxelTerrain.caveNoise.gain = TERRAIN_CAVE_GAIN;
+	voxelTerrain.caveNoise.octaves = TERRAIN_CAVE_OCTAVES;
 	voxelTerrain.caveNoise.lacunarity = TERRAIN_CAVE_LACUNARITY;
 	voxelTerrain.caveNoise.frequency = TERRAIN_CAVE_FREQUENCY;
 
 	//2D
-	voxelTerrain.caveNoise = fnlCreateState();
-	voxelTerrain.caveNoise.noise_type = FNL_NOISE_PERLIN;
-	voxelTerrain.caveNoise.seed = rand() % 10000000;
-	voxelTerrain.caveNoise.fractal_type = FNL_FRACTAL_FBM;
-	voxelTerrain.caveNoise.octaves = TERRAIN_HEIGHT_OCTAVES;
-	voxelTerrain.caveNoise.gain = TERRAIN_HEIGHT_GAIN;
-	voxelTerrain.caveNoise.lacunarity = TERRAIN_HEIGHT_LACUNARITY;
-	voxelTerrain.caveNoise.frequency = TERRAIN_HEIGHT_FREQUENCY;
+	voxelTerrain.heightNoise = fnlCreateState();
+	voxelTerrain.heightNoise.noise_type = FNL_NOISE_PERLIN;
+	voxelTerrain.heightNoise.seed = rand() % 10000000;
+	voxelTerrain.heightNoise.fractal_type = FNL_FRACTAL_FBM;
+	voxelTerrain.heightNoise.octaves = TERRAIN_HEIGHT_OCTAVES;
+	voxelTerrain.heightNoise.gain = TERRAIN_HEIGHT_GAIN;
+	voxelTerrain.heightNoise.lacunarity = TERRAIN_HEIGHT_LACUNARITY;
+	voxelTerrain.heightNoise.frequency = TERRAIN_HEIGHT_FREQUENCY;
 }
 
 static void SendFaceCreationJob(unsigned int x, unsigned int y, unsigned int z)
@@ -608,7 +611,7 @@ static void GenerateHeightMap(const unsigned int sourceId[2], const unsigned int
 		{
 			unsigned int pz = sourceId[1] * TERRAIN_CHUNK_SIZE + (z % TERRAIN_CHUNK_SIZE);
 
-			float val2D = fnlGetNoise2D(&voxelTerrain.caveNoise, (float)(px), (float)(pz));
+			float val2D = fnlGetNoise2D(&voxelTerrain.heightNoise, (float)(px), (float)(pz));
 			val2D = (val2D + 1) * .5f;
 			unsigned char height = (TERRAIN_LOWER_EDGE * TERRAIN_CHUNK_SIZE) +
 				(unsigned char)(val2D * (TERRAIN_CHUNK_SIZE * (TERRAIN_UPPER_EDGE - TERRAIN_LOWER_EDGE) - 1));
@@ -709,12 +712,43 @@ static void ReloadChunks(Camera3D camera)
 {
 	vec3 position;
 	glm_vec3(camera.position, position);
-	ivec3 id;
+	ivec2 id;
 	id[0] = (int)(position[0] / TERRAIN_CHUNK_SIZE) + WORLD_EDGE;
-	id[1] = (int)(position[1] / TERRAIN_CHUNK_SIZE);
-	id[2] = (int)(position[2] / TERRAIN_CHUNK_SIZE) + WORLD_EDGE;
+	id[1] = (int)(position[2] / TERRAIN_CHUNK_SIZE) + WORLD_EDGE;
 
-//	voxelTerrain.loadedCenter
-//	if(id[0] != )
+	if(!glm_ivec2_eqv(id, voxelTerrain.loadedCenter))
+	{
+		ivec2 dataShift;
+		glm_ivec2_sub(id, voxelTerrain.loadedCenter, dataShift);
+
+		if(dataShift[0] > 0)
+		{
+			size_t shiftSize = dataShift[0] * TERRAIN_VIEW_RANGE * sizeof(TerrainChunk);
+			TerrainChunk* tempBuffer = CM_MALLOC(shiftSize);
+			for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+			{
+				memcpy(tempBuffer, &voxelTerrain.chunks[GetChunkId(0, y, 0)], shiftSize);
+				memmove(&voxelTerrain.chunks[GetChunkId(0, y, 0)],
+						&voxelTerrain.chunks[GetChunkId(dataShift[0], y, 0)],
+						(TERRAIN_VIEW_RANGE - dataShift[0]) * TERRAIN_VIEW_RANGE * sizeof(TerrainChunk));
+				memcpy(&voxelTerrain.chunks[GetChunkId(TERRAIN_VIEW_RANGE - dataShift[0], y, 0)], tempBuffer, shiftSize);
+			}
+
+			for (int x = TERRAIN_VIEW_RANGE - dataShift[0]; x < TERRAIN_VIEW_RANGE; ++x)
+			{
+				for (int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
+				{
+					for (int y = 0; y < TERRAIN_HEIGHT; ++y)
+						RecreateChunk(&voxelTerrain.chunks[GetChunkId(x, y, z)], id[0] + x, y, voxelTerrain.loadedCenter[1] + z);
+
+					SendVerticalJob(x, z);
+				}
+			}
+
+			CM_FREE(tempBuffer);
+			voxelTerrain.loadedCenter[0] = id[0];
+			printf("Positive Shift\n");
+		}
+	}
 }
 //endregion
