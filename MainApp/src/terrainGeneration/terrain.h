@@ -38,7 +38,6 @@ void update_terrain();
 void draw_terrain();
 void dispose_terrain();
 
-void load_block_types();
 unsigned char get_block_type(float caveValue);
 fnl_state get_cave_noise();
 fnl_state get_biome_flat_noise();

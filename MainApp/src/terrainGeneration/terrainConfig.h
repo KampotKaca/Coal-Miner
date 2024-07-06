@@ -3,11 +3,13 @@
 
 //This should not be modified
 #define TERRAIN_CHUNK_SIZE 32
+#define TERRAIN_SSBO_BINDING 64
 
+//Can be modified
 #define TERRAIN_NUM_WORKER_THREADS 12
 #define TERRAIN_GROUP_UPLOAD_LIMIT 4
 
-#define TERRAIN_VIEW_RANGE 16
+#define TERRAIN_VIEW_RANGE 32
 #define TERRAIN_HEIGHT 8
 #define TERRAIN_LOWER_EDGE 4
 #define TERRAIN_UPPER_EDGE 6

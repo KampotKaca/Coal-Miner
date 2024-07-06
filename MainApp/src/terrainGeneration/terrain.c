@@ -9,6 +9,13 @@
 #define TERRAIN_CHUNK_COUNT TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE * TERRAIN_HEIGHT
 #define CHUNK_HORIZONTAL_SLICE TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE
 
+const unsigned int BUFFER_SIZE_STAGES[] =
+{
+	0, 128, 512, TERRAIN_CHUNK_CUBE_COUNT / 16,
+	TERRAIN_CHUNK_CUBE_COUNT / 8, TERRAIN_CHUNK_CUBE_COUNT / 4,
+	TERRAIN_CHUNK_CUBE_COUNT / 2, TERRAIN_CHUNK_CUBE_COUNT
+};
+
 typedef enum
 {
 	CHUNK_REQUIRES_FACES,
@@ -33,10 +40,12 @@ typedef struct
 typedef struct
 {
 	ChunkState state;
-	unsigned short faceCount;
-	bool isUploaded;
+	//1bit is uploaded
+	//3bit buffer size
+	//16bit faceCount
+	unsigned int flags;
 	unsigned int yId;
-	
+
 	unsigned int* buffer;
 	unsigned char* cells;
 }TerrainChunk;
@@ -129,7 +138,6 @@ bool terrainIsWireMode;
 //region Callback Functions
 void load_terrain()
 {
-	load_block_types();
 	LoadTerrainShader();
 	LoadTerrainTextures();
 	LoadBuffers();
@@ -208,18 +216,19 @@ void draw_terrain()
 			for (unsigned int y = 0; y < TERRAIN_HEIGHT; ++y)
 			{
 				TerrainChunk* chunk = &group->chunks[y];
-				
-				if(chunk->faceCount > 0)
+				unsigned short faceCount = (chunk->flags & 0xffff0000) >> 16;
+
+				if(faceCount > 0)
 				{
 					data.chunk[0] = (int)group->id[0];
 					data.chunk[1] = (int)y;
 					data.chunk[2] = (int)group->id[1];
 					data.chunkId = group->ssboId * TERRAIN_HEIGHT + y;
 
-					if(chunk->isUploaded)
+					if(chunk->flags & 1)
 					{
 						PassTerrainDataToShader(&data);
-						cm_draw_instanced_vao(voxelTerrain.quadVao, CM_TRIANGLES, chunk->faceCount);
+						cm_draw_instanced_vao(voxelTerrain.quadVao, CM_TRIANGLES, faceCount);
 					}
 				}
 			}
@@ -273,7 +282,7 @@ static void LoadTerrainTextures()
 static void LoadBuffers()
 {
 	voxelTerrain.quadVao = cm_get_unit_quad();
-	voxelTerrain.ssbo = cm_load_ssbo(64, sizeof(unsigned int) * TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT, NULL);
+	voxelTerrain.ssbo = cm_load_ssbo(TERRAIN_SSBO_BINDING, sizeof(unsigned int) * TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT, NULL);
 }
 
 static void InitTerrainNoise()
@@ -319,12 +328,11 @@ static TerrainChunkGroup InitializeChunkGroup(unsigned int ssboId)
 	{
 		TerrainChunk chunk =
 			{
-				.faceCount = 0,
-				.buffer = CM_MALLOC(TERRAIN_CHUNK_CUBE_COUNT * sizeof(unsigned int)),
+				.flags = 0,
+				.buffer = NULL,
 				.cells = CM_MALLOC(TERRAIN_CHUNK_CUBE_COUNT),
 				.state = CHUNK_REQUIRES_FACES,
 				.yId = y,
-				.isUploaded = false
 			};
 
 		group.chunks[y] = chunk;
@@ -348,9 +356,11 @@ static void UnloadChunkGroup(TerrainChunkGroup* group)
 	{
 		TerrainChunk* chunk = &group->chunks[y];
 		chunk->state = CHUNK_REQUIRES_FACES;
-		chunk->faceCount = 0;
-		chunk->isUploaded = false;
-		memset(chunk->buffer, 0, TERRAIN_CHUNK_CUBE_COUNT);
+		unsigned char bufferSize = (chunk->flags & 0b0111) >> 1;
+		chunk->flags &= 0;
+		chunk->flags |= bufferSize << 1;
+
+		if(chunk->buffer) memset(chunk->buffer, 0, BUFFER_SIZE_STAGES[bufferSize] * sizeof(unsigned int));
 		memset(chunk->cells, 0, TERRAIN_CHUNK_CUBE_COUNT);
 	}
 }
@@ -364,7 +374,7 @@ static void DestroyChunkGroup(TerrainChunkGroup* group)
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
 	{
 		CM_FREE(group->chunks[y].cells);
-		CM_FREE(group->chunks[y].buffer);
+		if(group->chunks[y].buffer) CM_FREE(group->chunks[y].buffer);
 	}
 }
 
@@ -653,7 +663,7 @@ static void GeneratePostChunk(unsigned int xId, unsigned int yId, unsigned int z
 
 static void SendFaceCreationJob(unsigned int x, unsigned int y, unsigned int z)
 {
-	TerrainChunk * chunk = &voxelTerrain.chunkGroups[x * TERRAIN_VIEW_RANGE + z].chunks[y];
+	TerrainChunk* chunk = &voxelTerrain.chunkGroups[x * TERRAIN_VIEW_RANGE + z].chunks[y];
 	chunk->state = CHUNK_CREATING_FACES;
 	
 	unsigned int* args = CM_MALLOC(3 * sizeof(unsigned int));
@@ -694,10 +704,8 @@ static void SendGroupFaceCreationJob(unsigned int x, unsigned int z)
 	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[x * TERRAIN_VIEW_RANGE + z];
 	
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
-	{
 		group->chunks[y].state = CHUNK_CREATING_FACES;
-	}
-	
+
 	cm_submit_job(voxelTerrain.pool, job, true);
 }
 
@@ -741,6 +749,9 @@ static void CreateChunkFaces(unsigned int xId, unsigned int yId, unsigned int zI
 	if(yId < TERRAIN_HEIGHT - 1) topChunkCells = group->chunks[yId + 1].cells;
 	if(yId > 0) bottomChunkCells = group->chunks[yId - 1].cells;
 
+	unsigned char bufferSizeIndex = (chunk->flags & 0b1110) >> 1;
+	unsigned int bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
+
 	for (unsigned int y = 0; y < TERRAIN_CHUNK_SIZE; y++)
 	{
 		for (unsigned int x = 0; x < TERRAIN_CHUNK_SIZE; x++)
@@ -782,6 +793,28 @@ static void CreateChunkFaces(unsigned int xId, unsigned int yId, unsigned int zI
 
 				if(faceMask == 0) continue;
 
+				if(bufferSize < faceCount + 6)
+				{
+					unsigned int oldBufferSize = bufferSize;
+					bufferSizeIndex++;
+					bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
+					void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(unsigned int));
+
+					if(newMemory == NULL)
+					{
+						perror("Unable to reallocate memory!!! exiting the program.\n");
+						exit(-1);
+					}
+					else
+					{
+						chunk->buffer = newMemory;
+						buffer = newMemory;
+						memset(&newMemory[oldBufferSize * sizeof(unsigned int)], 0, (bufferSize - oldBufferSize) * sizeof(unsigned int));
+						chunk->flags &= 0xfffffff1;
+						chunk->flags |= bufferSizeIndex << 1;
+					}
+				}
+
 				currentCell--;
 				unsigned int blockIndex = (currentCell / TERRAIN_MAX_AXIS_BLOCK_TYPES) << 4 |
 				                          (currentCell % TERRAIN_MAX_AXIS_BLOCK_TYPES);
@@ -792,15 +825,16 @@ static void CreateChunkFaces(unsigned int xId, unsigned int yId, unsigned int zI
 
 				for (int i = 0; i < 6; i++)
 				{
-					buffer[faceCount] = blockIndex | i;
-					faceCount += (faceMask & (1 << (5 - i))) >> (5 - i);
+					buffer[faceCount] = blockIndex | (5 - i);
+					faceCount += (faceMask & (1 << i)) >> i;
 				}
 			}
 		}
 	}
 
 #undef RECT_FACE
-	chunk->faceCount = faceCount;
+	chunk->flags &= 0x0000ffff;
+	chunk->flags |= faceCount << 16;
 }
 
 //endregion
@@ -858,15 +892,16 @@ static bool TryUploadGroup(TerrainChunkGroup* group)
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
 	{
 		TerrainChunk* chunk = &group->chunks[y];
-		if(chunk->faceCount == 0) continue;
+		unsigned short faceCount = (chunk->flags & 0xffff0000) >> 16;
+		if(faceCount == 0) continue;
 
 		if(chunk->state == CHUNK_REQUIRES_UPLOAD)
 		{
 			unsigned int id = group->ssboId * TERRAIN_HEIGHT + y;
 			cm_upload_ssbo(voxelTerrain.ssbo, id * TERRAIN_CHUNK_CUBE_COUNT * sizeof(unsigned int),
-			               chunk->faceCount * sizeof(unsigned int), chunk->buffer);
+			               faceCount * sizeof(unsigned int), chunk->buffer);
 			chunk->state = CHUNK_READY_TO_DRAW;
-			chunk->isUploaded = true;
+			chunk->flags |= 1;
 			uploaded = true;
 		}
 	}

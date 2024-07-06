@@ -29,11 +29,6 @@ BlockData blockData[BLOCK_GEN_COUNT] =
 	}
 };
 
-void load_block_types()
-{
-
-}
-
 unsigned char get_block_type(float caveValue)
 {
 	float currentValue = 0;
