@@ -1,6 +1,7 @@
 #include "grid.h"
 #include "coal_miner.h"
 #include "config.h"
+#include "terrainGeneration/terrainConfig.h"
 
 typedef struct GridVertex
 {
@@ -17,8 +18,8 @@ typedef struct GridData
 	GridVertex vertices[((GRID_SIZE + 1) + (GRID_SIZE + 1)) * 2];
 }GridData;
 
-static void CreateShader();
-static void CreateVao();
+static void CreateGridShader();
+static void CreateGridVao();
 
 GridData gridData;
 
@@ -69,9 +70,9 @@ void load_grid()
 		
 		id += 2;
 	}
-	
-	CreateShader();
-	CreateVao();
+
+	CreateGridShader();
+	CreateGridVao();
 }
 
 void draw_grid()
@@ -93,7 +94,7 @@ void dispose_grid()
 	cm_unload_shader(gridData.gridShader);
 }
 
-static void CreateShader()
+static void CreateGridShader()
 {
 	Path vsPath = TO_RES_PATH(vsPath, "shaders/grid.vert");
 	Path fsPath = TO_RES_PATH(fsPath, "shaders/grid.frag");
@@ -104,7 +105,7 @@ static void CreateShader()
 	gridData.u_colorId = cm_get_uniform_location(gridData.gridShader, "u_color");
 }
 
-static void CreateVao()
+static void CreateGridVao()
 {
 	VaoAttribute attributes[] =
 	{

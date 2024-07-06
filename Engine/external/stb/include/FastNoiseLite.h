@@ -53,7 +53,7 @@
 #define FASTNOISELITE_H
 
 // Switch between using floats or doubles for input position
-typedef float FNLfloat;
+typedef double FNLfloat;
 //typedef double FNLfloat;
 
 #if defined(__cplusplus)
