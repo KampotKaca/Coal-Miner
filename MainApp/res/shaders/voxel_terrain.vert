@@ -3,7 +3,7 @@
 const uint CHUNK_SIZE = 32;
 const uint CHUNK_CUBE_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
-const int WORLD_EDGE = 1000000 * int(CHUNK_SIZE);
+const int WORLD_EDGE = 100000 * int(CHUNK_SIZE);
 
 const uint MAX_AXIS_SURFACE_TYPE = 16;
 const float AXIS_SURFACE_OFFSET = 1.0f / (MAX_AXIS_SURFACE_TYPE);
