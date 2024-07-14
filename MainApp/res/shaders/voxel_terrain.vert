@@ -26,12 +26,6 @@ layout(std140, binding = 32) uniform Camera
 //6bit BlockPositionX
 
 //3bit faceId
-
-layout(std430, binding = 64) buffer VoxelBuffer
-{
-    uint voxelFaces[];
-};
-
 //2bit Id
 layout(location = 0) in uint vertex;
 
@@ -45,18 +39,17 @@ void main()
 {
     uint vert = vertex;
     ivec2 lPos = ivec2((vert & 2u) >> 1, vert & 1u);
-    vert = vert >> 2;
+    vert >>= 2;
 
-    uint face = voxelFaces[u_chunkIndex.w * CHUNK_CUBE_COUNT + gl_InstanceID];
     ivec3 vertexPos;
 
-    out_faceId = face & 7u;
-    face = face >> 3;
-    ivec3 blockPos = ivec3((face & 258048u) >> 12, (face & 4032u) >> 6, face & 63u);
-    face = face >> 18;
+    out_faceId = vert & 7u;
+    vert >>= 3;
+    ivec3 blockPos = ivec3((vert & 258048u) >> 12, (vert & 4032u) >> 6, vert & 63u);
+    vert >>= 18;
 
-    ivec2 surfaceId = ivec2((face & 240u) >> 4, (face & 15u));
-    face = face >> 8;
+    ivec2 surfaceId = ivec2((vert & 240u) >> 4, (vert & 15u));
+    vert >>= 8;
 
     switch(out_faceId)
     {

@@ -153,13 +153,11 @@ static void CreateQuad()
 
 	Vbo vbo = { 0 };
 	vbo.id = 0;
-	vbo.isStatic = true;
 	vbo.data = cmQuadVertices;
 	vbo.vertexCount = 4;
 	vbo.dataSize = sizeof(unsigned int) * 4;
 	Ebo ebo = {0};
 	ebo.id = 0;
-	ebo.isStatic = true;
 	ebo.dataSize = sizeof(unsigned int) * 6;
 	ebo.data = cmQuadTriangles;
 	ebo.type = CM_UINT;

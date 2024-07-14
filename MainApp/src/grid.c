@@ -115,7 +115,6 @@ static void CreateGridVao()
 	
 	Vbo vbo = { 0 };
 	vbo.id = 0;
-	vbo.isStatic = true;
 	vbo.data = gridData.vertices;
 	vbo.vertexCount = ((GRID_SIZE + 1) + (GRID_SIZE + 1)) * 2;
 	vbo.dataSize = sizeof(gridData.vertices);

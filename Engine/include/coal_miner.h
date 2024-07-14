@@ -362,7 +362,6 @@ typedef struct Ebo
 {
 	unsigned int id;
 	unsigned int dataSize;
-	bool isStatic;
 	const void* data;
 	unsigned int type;
 	unsigned int indexCount;
@@ -373,7 +372,6 @@ typedef struct Vbo
 	unsigned int id;
 	unsigned int dataSize;
 	unsigned int vertexCount;
-	bool isStatic;
 	const void* data;
 	Ebo ebo;
 }Vbo;
@@ -383,7 +381,6 @@ typedef struct Ssbo
 	unsigned int id;
 	unsigned int bindingId;
 	unsigned int dataSize;
-	bool isStatic;
 }Ssbo;
 
 typedef struct VaoAttribute
@@ -493,11 +490,11 @@ extern bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, const voi
 extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo);
 extern void cm_unload_vao(Vao vao);
 
-extern Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, const void* data, bool isStatic, Ebo ebo);
+extern Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, const void* data, Ebo ebo);
 extern void cm_unload_vbo(Vbo vbo);
 extern void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, const void* data);
 extern void cm_reupload_vbo_partial(Vbo* vbo, unsigned int dataOffset, unsigned int uploadSize);
-extern Ebo cm_load_ebo(unsigned int dataSize, const void* data, bool isStatic,
+extern Ebo cm_load_ebo(unsigned int dataSize, const void* data,
 					   unsigned int type, unsigned int indexCount);
 extern void cm_unload_ebo(Ebo ebo);
 extern void cm_reupload_ebo(Ebo* ebo, unsigned int dataSize, const void* data, unsigned int indexCount);

@@ -75,10 +75,8 @@ typedef struct
 	Shader shader;
 	Texture textures[3];
 
-	Vao quadVao;
-	Ssbo ssbo;
-
 	ivec2 loadedCenter;
+	Vao chunkVaos[TERRAIN_CHUNK_COUNT];
 	TerrainChunkGroup chunkGroups[TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE];
 	TerrainChunkGroup* shiftGroups;
 }VoxelTerrain;
@@ -143,7 +141,6 @@ void load_terrain()
 {
 	LoadTerrainShader();
 	LoadTerrainTextures();
-	LoadBuffers();
 	InitTerrainNoise();
 	
 	voxelTerrain.shiftGroups = CM_MALLOC(TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE * sizeof(TerrainChunkGroup));
@@ -151,6 +148,8 @@ void load_terrain()
 	for (int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 		for (int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
 			voxelTerrain.chunkGroups[x * TERRAIN_VIEW_RANGE + z] = InitializeChunkGroup(x * TERRAIN_VIEW_RANGE + z);
+	
+	LoadBuffers();
 	
 	voxelTerrain.pool = cm_create_thread_pool(TERRAIN_NUM_WORKER_THREADS);
 
@@ -249,7 +248,7 @@ void draw_terrain()
 					if(chunk->flags & 1)
 					{
 						PassTerrainDataToShader(&data);
-						cm_draw_instanced_vao(voxelTerrain.quadVao, CM_TRIANGLES, faceCount);
+						cm_draw_vao(voxelTerrain.chunkVaos[data.chunkId], CM_TRIANGLES);
 						drawCount++;
 					}
 				}
@@ -274,8 +273,10 @@ void dispose_terrain()
 	CM_FREE(voxelTerrain.shiftGroups);
 	
 	for (int i = 0; i < 3; ++i) cm_unload_texture(voxelTerrain.textures[i]);
+	
+	for (int i = 0; i < TERRAIN_CHUNK_COUNT; ++i)
+		cm_unload_vao(voxelTerrain.chunkVaos[i]);
 
-	cm_unload_ssbo(voxelTerrain.ssbo);
 	cm_unload_shader(voxelTerrain.shader);
 }
 //endregion
@@ -305,8 +306,22 @@ static void LoadTerrainTextures()
 
 static void LoadBuffers()
 {
-	voxelTerrain.quadVao = cm_get_unit_quad();
-	voxelTerrain.ssbo = cm_load_ssbo(TERRAIN_SSBO_BINDING, sizeof(uint32_t ) * TERRAIN_CHUNK_CUBE_COUNT * TERRAIN_CHUNK_COUNT, NULL);
+	for (int i = 0; i < TERRAIN_CHUNK_COUNT; ++i)
+	{
+		VaoAttribute attributes[] =
+		{
+			{ 1, CM_UINT, false, 1 * sizeof(unsigned int) },
+		};
+		
+		Vbo vbo = { 0 };
+		vbo.id = 0;
+		vbo.data = NULL;
+		vbo.vertexCount = 0;
+		vbo.dataSize = 0;
+		vbo.ebo = (Ebo){0};
+		
+		voxelTerrain.chunkVaos[i] = cm_load_vao(attributes, 1, vbo);
+	}
 }
 
 static void InitTerrainNoise()
@@ -846,7 +861,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 						uint32_t oldBufferSize = bufferSize;
 						bufferSizeIndex++;
 						bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
-						void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(unsigned int));
+						void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(unsigned int) * 6);
 						
 						if(newMemory == NULL)
 						{
@@ -857,7 +872,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 						{
 							chunk->buffer = newMemory;
 							buffer = newMemory;
-							memset(&newMemory[oldBufferSize * sizeof(unsigned int)], 0, (bufferSize - oldBufferSize) * sizeof(unsigned int));
+							memset(&newMemory[oldBufferSize * sizeof(unsigned int) * 6], 0, (bufferSize - oldBufferSize) * sizeof(unsigned int) * 6);
 							chunk->flags &= 0xfffffff1;
 							chunk->flags |= bufferSizeIndex << 1;
 						}
@@ -869,12 +884,21 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 					
 					blockIndex <<= 18;
 					blockIndex |= (x << 12) | (y << 6) | z;
-					blockIndex <<= 3;
+					blockIndex <<= 5;
 					
-					for (int i = 0; i < 6; i++)
+					for (uint32_t i = 0; i < 6; i++)
 					{
-						buffer[faceCount] = blockIndex | (5 - i);
-						faceCount += (faceMask & (1 << i)) >> i;
+						if((faceMask & (1u << (5 - i))) > 0)
+						{
+							uint32_t faceId = blockIndex | (i << 2);
+							buffer[faceCount * 6 + 0] = faceId | 0b00;
+							buffer[faceCount * 6 + 1] = faceId | 0b01;
+							buffer[faceCount * 6 + 2] = faceId | 0b11;
+							buffer[faceCount * 6 + 3] = faceId | 0b00;
+							buffer[faceCount * 6 + 4] = faceId | 0b11;
+							buffer[faceCount * 6 + 5] = faceId | 0b10;
+							faceCount++;
+						}
 					}
 				}
 			}
@@ -884,6 +908,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 #undef RECT_FACE
 	chunk->flags &= 0x0000ffff;
 	chunk->flags |= faceCount << 16;
+	voxelTerrain.chunkVaos[group->ssboId * TERRAIN_HEIGHT + yId].vbo.vertexCount = faceCount * 6;
 }
 
 //endregion
@@ -947,8 +972,7 @@ static bool TryUploadGroup(TerrainChunkGroup* group)
 		if(chunk->state == CHUNK_REQUIRES_UPLOAD)
 		{
 			uint32_t id = group->ssboId * TERRAIN_HEIGHT + y;
-			cm_upload_ssbo(voxelTerrain.ssbo, id * TERRAIN_CHUNK_CUBE_COUNT * sizeof(uint32_t),
-			               faceCount * sizeof(uint32_t), chunk->buffer);
+			cm_reupload_vbo(&voxelTerrain.chunkVaos[id].vbo, faceCount * sizeof(uint32_t) * 6, chunk->buffer);
 			chunk->state = CHUNK_READY_TO_DRAW;
 			chunk->flags |= 1;
 			uploaded = true;
