@@ -111,7 +111,7 @@ static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, i
 }
 
 // GLFW3 Char Key Callback, runs on key down (gets equivalent unicode char value)
-static void CharCallback(GLFWwindow *window, unsigned int key)
+static void CharCallback(GLFWwindow *window, uint32_t key)
 {
 	//TRACELOG(LOG_DEBUG, "Char Callback: KEY:%i(%c)", key, key);
 
@@ -664,7 +664,7 @@ void restore_window(void)
 }
 
 // Set window configuration state using flags
-void set_window_state(unsigned int flags)
+void set_window_state(uint32_t flags)
 {
 	// Check previous state and requested state to apply required changes
 	// NOTE: In most cases the functions already change the flags internally
@@ -779,7 +779,7 @@ void set_window_state(unsigned int flags)
 }
 
 // Clear window configuration state flags
-void clear_window_state(unsigned int flags)
+void clear_window_state(uint32_t flags)
 {
 	// Check previous state and requested state to apply required changes
 	// NOTE: In most cases the functions already change the flags internally

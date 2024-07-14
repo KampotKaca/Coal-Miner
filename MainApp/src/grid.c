@@ -5,8 +5,8 @@
 
 typedef struct GridVertex
 {
-	unsigned int vertex;
-	unsigned int colorId;
+	uint32_t vertex;
+	uint32_t colorId;
 }GridVertex;
 
 typedef struct GridData
@@ -26,9 +26,9 @@ GridData gridData;
 void load_grid()
 {
 	int id = 0;
-	for (unsigned int x = 0; x <= GRID_SIZE; ++x)
+	for (uint32_t x = 0; x <= GRID_SIZE; ++x)
 	{
-		unsigned int vertex = (x << 16);
+		uint32_t vertex = (x << 16);
 		
 		GridVertex vStart =
 		{
@@ -49,9 +49,9 @@ void load_grid()
 		id += 2;
 	}
 	
-	for (unsigned int z = 0; z <= GRID_SIZE; ++z)
+	for (uint32_t z = 0; z <= GRID_SIZE; ++z)
 	{
-		unsigned int vertex = z;
+		uint32_t vertex = z;
 		GridVertex vStart =
 		{
 			.vertex = vertex,

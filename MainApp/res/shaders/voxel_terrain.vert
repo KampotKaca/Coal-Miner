@@ -1,6 +1,6 @@
 #version 430 core
 
-const uint CHUNK_SIZE = 32;
+const uint CHUNK_SIZE = 64;
 const uint CHUNK_CUBE_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 const int WORLD_EDGE = 100000 * int(CHUNK_SIZE);
@@ -21,9 +21,9 @@ layout(std140, binding = 32) uniform Camera
 //4bit uvX
 //4bit uvY
 
-//5bit BlockPositionZ
-//5bit BlockPositionY
-//5bit BlockPositionX
+//6bit BlockPositionZ
+//6bit BlockPositionY
+//6bit BlockPositionX
 
 //3bit faceId
 
@@ -52,8 +52,8 @@ void main()
 
     out_faceId = face & 7u;
     face = face >> 3;
-    ivec3 blockPos = ivec3((face & 31744u) >> 10, (face & 992u) >> 5, face & 31u);
-    face = face >> 15;
+    ivec3 blockPos = ivec3((face & 258048u) >> 12, (face & 4032u) >> 6, face & 63u);
+    face = face >> 18;
 
     ivec2 surfaceId = ivec2((face & 240u) >> 4, (face & 15u));
     face = face >> 8;

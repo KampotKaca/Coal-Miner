@@ -59,7 +59,7 @@ char *cm_load_file_text(const char *filePath)
             // text mode causes carriage return-linefeed translation...
             // ...but using fseek() should return correct byte-offset
             fseek(file, 0, SEEK_END);
-            unsigned int size = (unsigned int)ftell(file);
+            uint32_t size = (uint32_t)ftell(file);
             fseek(file, 0, SEEK_SET);
 
             if (size > 0)
@@ -68,11 +68,20 @@ char *cm_load_file_text(const char *filePath)
 
                 if (text != NULL)
                 {
-                    unsigned int count = (unsigned int)fread(text, sizeof(char), size, file);
+	                uint32_t count = (uint32_t)fread(text, sizeof(char), size, file);
 
                     // WARNING: \r\n is converted to \n on reading, so,
                     // read bytes count gets reduced by the number of lines
-                    if (count < size) text = CM_REALLOC(text, count + 1);
+                    if (count < size)
+                    {
+						void* newMemory = CM_REALLOC(text, count + 1);
+						if(newMemory == NULL)
+						{
+							perror("Unable to reallocate memory!!! exiting the program.\n");
+							exit(-1);
+						}
+						else text = newMemory;
+					}
 
                     // Zero-terminate the string
                     text[count] = '\0';

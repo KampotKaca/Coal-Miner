@@ -324,7 +324,7 @@ typedef struct Shader
 } Shader;
 
 // Transform, vertex transformation data
-typedef struct Transform
+typedef struct
 {
 	vec3 position;    // Translation
 	versor rotation;  // Rotation
@@ -332,7 +332,7 @@ typedef struct Transform
 } Transform;
 
 // Camera, defines position/orientation in 3d space
-typedef struct Camera3D
+typedef struct
 {
 	vec3 position;     // Camera position
 	vec3 direction;    // Camera target it looks-at
@@ -342,6 +342,20 @@ typedef struct Camera3D
 	float nearPlane;
 	float farPlane;
 } Camera3D;
+
+typedef struct
+{
+	vec3 normal;    //Normal of the surface
+	float distance; //From origin
+}Plane;
+
+typedef Plane Frustum[6];
+
+typedef struct
+{
+	vec3 center;
+	vec3 extents;
+}BoundingVolume;
 
 typedef struct Ebo
 {
@@ -464,6 +478,10 @@ extern void cm_set_texture(int id, unsigned int texId, unsigned char bindingPoin
 //region Camera
 extern void cm_begin_mode_3d(Camera3D camera);
 extern void cm_end_mode_3d();
+extern Frustum* cm_get_frustum();
+extern bool cm_is_in_main_frustum(BoundingVolume* volume);
+extern bool cm_is_on_or_forward_plane(Plane* plane, BoundingVolume* volume);
+extern bool cm_is_on_or_backward_plane(Plane* plane, BoundingVolume* volume);
 //endregion
 
 //region GL Buffers

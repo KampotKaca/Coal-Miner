@@ -3,7 +3,7 @@
 
 static void* ExecuteJob(void* args);
 
-ThreadPool* cm_create_thread_pool(unsigned int numThreads)
+ThreadPool* cm_create_thread_pool(uint32_t numThreads)
 {
 	ThreadPool* pool = CM_MALLOC(sizeof(ThreadPool));
 	

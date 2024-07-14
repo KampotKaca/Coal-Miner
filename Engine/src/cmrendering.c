@@ -13,6 +13,7 @@ struct CameraUbo
 
 Window* CM_RN_WIN_P;
 struct CameraUbo CM_CAMERA_UBO;
+Frustum CM_MAIN_FRUSTUM;
 
 const unsigned int cmQuadVertices[4] =
 {
@@ -74,11 +75,71 @@ void cm_begin_mode_3d(Camera3D camera)
 
 	upload_ubos();
 	cm_enable_depth_test();
+
+	vec4 planes[6];
+	glm_frustum_planes(CM_CAMERA_UBO.viewProjection, planes);
+
+	for (int i = 0; i < 6; ++i)
+		memcpy(CM_MAIN_FRUSTUM, planes, 6 * sizeof(vec4));
 }
 
 void cm_end_mode_3d()
 {
 	cm_disable_depth_test();           // Disable DEPTH_TEST for 2D
+}
+
+Frustum* cm_get_frustum() { return &CM_MAIN_FRUSTUM; }
+
+bool cm_is_in_main_frustum(BoundingVolume* volume)
+{
+	vec3 min, max;
+	glm_vec3_add(volume->center, volume->extents, max);
+	glm_vec3_sub(volume->center, volume->extents, min);
+
+	for(int i = 0; i < 6; i++)
+	{
+		vec3 normal;
+		glm_vec3(CM_MAIN_FRUSTUM[i].normal, normal);
+		float distance = CM_MAIN_FRUSTUM[i].distance;
+
+		if ((glm_vec3_dot(normal, min) + distance > 0) ||
+		    (glm_vec3_dot(normal, max) + distance > 0) ||
+		    (glm_vec3_dot(normal, (vec3){min[0], max[1], min[2]}) + distance > 0) ||
+		    (glm_vec3_dot(normal, (vec3){max[0], min[1], min[2]}) + distance > 0) ||
+		    (glm_vec3_dot(normal, (vec3){min[0], min[1], max[2]}) + distance > 0) ||
+		    (glm_vec3_dot(normal, (vec3){max[0], max[1], min[2]}) + distance > 0) ||
+		    (glm_vec3_dot(normal, (vec3){min[0], max[1], max[2]}) + distance > 0) ||
+		    (glm_vec3_dot(normal, (vec3){max[0], min[1], max[2]}) + distance > 0) ||
+		    (glm_vec3_dot(normal, (vec3){max[0], max[1], max[2]}) + distance > 0))
+			continue;
+
+		// If we get here, it isn't in the frustum
+		return false;
+	}
+
+	return true;
+}
+
+bool cm_is_on_or_forward_plane(Plane* plane, BoundingVolume* volume)
+{
+	vec3 absNormal;
+	glm_vec3_abs(plane->normal, absNormal);
+	const float r = volume->extents[0] * absNormal[0] +
+	                volume->extents[1] * absNormal[1] +
+					volume->extents[2] * absNormal[2];
+
+	return -r <= glm_dot(plane->normal, volume->center) - plane->distance;
+}
+
+bool cm_is_on_or_backward_plane(Plane* plane, BoundingVolume* volume)
+{
+	vec3 absNormal;
+	glm_vec3_abs(plane->normal, absNormal);
+	const float r = volume->extents[0] * absNormal[0] +
+	                volume->extents[1] * absNormal[1] +
+	                volume->extents[2] * absNormal[2];
+
+	return -r >= glm_dot(plane->normal, volume->center) - plane->distance;
 }
 
 Vao cm_get_unit_quad() { return cmQuad; }
