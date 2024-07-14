@@ -40,3 +40,13 @@ void cm_spiral_loop(unsigned int width, unsigned int height,
 		if (stepCount % 2 == 0) steps++;
 	}
 }
+
+uint32_t cm_trailing_zeros(uint64_t n)
+{
+	return n ? __builtin_ctzll(n) : 64u;
+}
+
+uint32_t cm_trailing_ones(uint64_t n)
+{
+	return n ? __builtin_ctzll(~n) : 64u;
+}

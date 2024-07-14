@@ -27,7 +27,7 @@ static void ThirdPersonCamera();
 
 void load_camera()
 {
-	camera.position[1] = 250;
+	camera.position[1] = 200;
 	camera.direction[1] = -1;
 	camera.farPlane = 10000;
 	
@@ -74,18 +74,6 @@ static CameraOffsetData CalculateOffset()
 
 static void FreeCamera()
 {
-	vec2 delta;
-	cm_get_mouse_delta(delta);
-	glm_vec2_negate(delta);
-	glm_vec2_scale(delta, CAM_FREE_ROTATE_SPEED * cm_delta_time_f(), delta);
-//	printf("x: %f, y: %f\n", delta[0], delta[1]);
-	glm_vec2_add(freeCameraPair, delta, freeCameraPair);
-	freeCameraPair[0] = fmodf(freeCameraPair[0], 360);
-	freeCameraPair[1] = glm_clamp(freeCameraPair[1], CAM_FREE_ROTATE_MIN_LIMIT, CAM_FREE_ROTATE_MAX_LIMIT);
-
-	cm_yp_to_direction(freeCameraPair[0], freeCameraPair[1], camera.direction);
-//	printf("x: %f, y: %f, z: %f", camera.direction[0], camera.direction[1], camera.direction[2]);
-	
 	vec3 right;
 	glm_cross(camera.direction, camera.up, right);
 	
@@ -112,8 +100,17 @@ static void FreeCamera()
 		glm_vec3_add(camera.position, fDir, camera.position);
 		glm_vec3_add(camera.position, rDir, camera.position);
 		glm_vec3_add(camera.position, upDir, camera.position);
-
 	}
+	
+	vec2 delta;
+	cm_get_mouse_delta(delta);
+	glm_vec2_negate(delta);
+	glm_vec2_scale(delta, CAM_FREE_ROTATE_SPEED * cm_delta_time_f(), delta);
+	glm_vec2_add(freeCameraPair, delta, freeCameraPair);
+	freeCameraPair[0] = fmodf(freeCameraPair[0], 360);
+	freeCameraPair[1] = glm_clamp(freeCameraPair[1], CAM_FREE_ROTATE_MIN_LIMIT, CAM_FREE_ROTATE_MAX_LIMIT);
+	
+	cm_yp_to_direction(freeCameraPair[0], freeCameraPair[1], camera.direction);
 }
 
 static void ThirdPersonCamera()

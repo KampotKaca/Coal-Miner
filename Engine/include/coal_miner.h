@@ -25,6 +25,7 @@
 #include <cglm/cglm.h>
 #include <cglm/call.h>
 #include <cglm/quat.h>
+#include <inttypes.h>
 #include "threadpool/cm_threadpool.h"
 
 typedef char Path[MAX_PATH_SIZE];

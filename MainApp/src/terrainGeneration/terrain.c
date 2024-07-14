@@ -3,6 +3,7 @@
 #include "coal_miner_internal.h"
 #include <FastNoiseLite.h>
 #include "camera.h"
+#include "coal_helper.h"
 
 //region structures
 #define TERRAIN_CHUNK_CUBE_COUNT TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE
@@ -46,8 +47,9 @@ typedef struct
 	uint32_t flags;
 	uint32_t yId;
 
-	uint32_t * buffer;
-	uint8_t * cells;
+	uint32_t* buffer;
+	uint8_t* cells;
+	uint64_t* opaqueMask;
 }TerrainChunk;
 
 typedef struct
@@ -257,7 +259,7 @@ void draw_terrain()
 
 	cm_end_shader_mode();
 
-	printf("Draw: %i\n", drawCount);
+//	printf("Draw: %i\n", drawCount);
 }
 
 void dispose_terrain()
@@ -353,6 +355,7 @@ static TerrainChunkGroup InitializeChunkGroup(uint32_t ssboId)
 				.flags = 0,
 				.buffer = NULL,
 				.cells = CM_MALLOC(TERRAIN_CHUNK_CUBE_COUNT),
+				.opaqueMask = CM_MALLOC(TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t)),
 				.state = CHUNK_REQUIRES_FACES,
 				.yId = y,
 			};
@@ -382,8 +385,9 @@ static void UnloadChunkGroup(TerrainChunkGroup* group)
 		chunk->flags &= 0;
 		chunk->flags |= bufferSize << 1;
 
-		if(chunk->buffer) memset(chunk->buffer, 0, BUFFER_SIZE_STAGES[bufferSize] * sizeof(uint32_t ));
+		if(chunk->buffer) memset(chunk->buffer, 0, BUFFER_SIZE_STAGES[bufferSize] * sizeof(uint32_t));
 		memset(chunk->cells, 0, TERRAIN_CHUNK_CUBE_COUNT);
+		memset(chunk->opaqueMask, 0, TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t));
 	}
 }
 
@@ -397,6 +401,7 @@ static void DestroyChunkGroup(TerrainChunkGroup* group)
 	{
 		CM_FREE(group->chunks[y].cells);
 		if(group->chunks[y].buffer) CM_FREE(group->chunks[y].buffer);
+		CM_FREE(group->chunks[y].opaqueMask);
 	}
 }
 
@@ -597,7 +602,7 @@ static void T_OnNoiseGenerationFinished(void* args)
 static void GenerateHeightMap(const uint32_t sourceId[2], const uint32_t destination[2])
 {
 	uint8_t * heightMap = voxelTerrain.chunkGroups[destination[0] * TERRAIN_VIEW_RANGE + destination[1]].heightMap;
-	fnl_state noise = voxelTerrain.biomes[BIOME_HILL];
+	fnl_state noise = voxelTerrain.biomes[BIOME_FLAT];
 
 	for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
 	{
@@ -618,19 +623,20 @@ static void GenerateHeightMap(const uint32_t sourceId[2], const uint32_t destina
 
 static void GeneratePreChunk(uint32_t xId, uint32_t yId, uint32_t zId)
 {
-	TerrainChunkGroup group = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
-	uint8_t * heightMap = group.heightMap;
-	TerrainChunk chunk = group.chunks[yId];
-	memset(chunk.cells, 0, TERRAIN_CHUNK_CUBE_COUNT);
+	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
+	uint8_t* heightMap = group->heightMap;
+	uint8_t* cells = group->chunks[yId].cells;
+	uint64_t* opaqueMask = group->chunks[yId].opaqueMask;
+	uint32_t groupId[2] = { group->id[0], group->id[1] };
 
 	for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
 	{
-		uint32_t px = group.id[0] * TERRAIN_CHUNK_SIZE + x;
+		uint32_t px = groupId[0] * TERRAIN_CHUNK_SIZE + x;
 
 		for (uint32_t z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
 		{
 			uint32_t xzId = x * TERRAIN_CHUNK_SIZE + z;
-			uint32_t pz = group.id[1] * TERRAIN_CHUNK_SIZE + z;
+			uint32_t pz = groupId[1] * TERRAIN_CHUNK_SIZE + z;
 			int maxY = (int)heightMap[x * TERRAIN_CHUNK_SIZE + z] - (int)(yId * TERRAIN_CHUNK_SIZE);
 			int yLimit = glm_imin((int)(TERRAIN_CHUNK_SIZE - 1), maxY);
 			if(yLimit < 0) continue;
@@ -645,7 +651,9 @@ static void GeneratePreChunk(uint32_t xId, uint32_t yId, uint32_t zId)
 					caveValue = (caveValue - TERRAIN_CAVE_EDGE) / (1 - TERRAIN_CAVE_EDGE);
 
 					uint32_t id = y * CHUNK_HORIZONTAL_SLICE + xzId;
-					chunk.cells[id] = get_block_type(caveValue);
+					uint8_t block = get_block_type(caveValue);
+					cells[id] = block;
+					opaqueMask[y * TERRAIN_CHUNK_SIZE + x] |= 1llu << z;
 				}
 			}
 		}
@@ -656,8 +664,9 @@ static void GeneratePreChunk(uint32_t xId, uint32_t yId, uint32_t zId)
 
 static void GeneratePostChunk(uint32_t xId, uint32_t yId, uint32_t zId)
 {
-	uint8_t * heightMap = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId].heightMap;
-	TerrainChunk chunk = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId].chunks[yId];
+	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
+	uint8_t* heightMap = group->heightMap;
+	uint8_t* cells = group->chunks[yId].cells;
 	for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
 	{
 		for (uint32_t z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
@@ -670,10 +679,10 @@ static void GeneratePostChunk(uint32_t xId, uint32_t yId, uint32_t zId)
 			for (uint32_t y = 0; y <= yLimit; ++y)
 			{
 				uint32_t id = y * CHUNK_HORIZONTAL_SLICE + xzId;
-				if(chunk.cells[id] == BLOCK_EMPTY) continue;
-
-				if(y == maxY) chunk.cells[id] = BLOCK_GRASS;
-				else if(maxY - y < 3) chunk.cells[id] = BLOCK_DIRT;
+				if(cells[id] == BLOCK_EMPTY) continue;
+				
+				if(y == maxY) cells[id] = BLOCK_GRASS;
+				else if(maxY - y < 3) cells[id] = BLOCK_DIRT;
 			}
 		}
 	}
@@ -714,7 +723,7 @@ static void T_ChunkFacesCreationFinished(void* args)
 
 static void SendGroupFaceCreationJob(uint32_t x, uint32_t z)
 {
-	uint32_t * args = CM_MALLOC(2 * sizeof(uint32_t ));
+	uint32_t* args = CM_MALLOC(2 * sizeof(uint32_t));
 	args[0] = x;
 	args[1] = z;
 	
@@ -755,6 +764,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
 	TerrainChunk* chunk = &group->chunks[yId];
 	uint32_t* buffer = chunk->buffer;
+	uint64_t* opaqueMask = chunk->opaqueMask;
 	uint8_t* cells = chunk->cells;
 
 	uint8_t* frontChunkCells = NULL;
@@ -778,77 +788,94 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 	{
 		for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; x++)
 		{
-			for (uint32_t z = 0; z < TERRAIN_CHUNK_SIZE; z++)
+			uint64_t mask = opaqueMask[y * TERRAIN_CHUNK_SIZE + x];
+			uint32_t start = 0;
+			
+			while (mask != 0llu)
 			{
-				uint32_t cubeId = y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z;
-				uint8_t currentCell = cells[cubeId];
-				if(currentCell == BLOCK_EMPTY) continue;
-
-				uint8_t faceMask = 0;
-
-				//region define faces
-				//Front
-				faceMask |= (((z == TERRAIN_CHUNK_SIZE - 1) && (frontChunkCells != NULL && frontChunkCells[y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY)) ||
-					((z < TERRAIN_CHUNK_SIZE - 1) && cells[cubeId + 1] == BLOCK_EMPTY)) << 5;
-
-				//Back
-				faceMask |= (((z == 0) && (backChunkCells != NULL && backChunkCells[y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + TERRAIN_CHUNK_SIZE - 1] == BLOCK_EMPTY)) ||
-				             ((z > 0) && cells[cubeId - 1] == BLOCK_EMPTY)) << 4;
-
-				//Right
-				faceMask |= (((x == TERRAIN_CHUNK_SIZE - 1) && (rightChunkCells != NULL && rightChunkCells[y * CHUNK_HORIZONTAL_SLICE + z] == BLOCK_EMPTY)) ||
-				             ((x < TERRAIN_CHUNK_SIZE - 1) && (cells[cubeId + TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY))) << 3;
-
-				//Left
-				faceMask |= (((x == 0) && (leftChunkCells != NULL && leftChunkCells[y * CHUNK_HORIZONTAL_SLICE + (TERRAIN_CHUNK_SIZE - 1) * TERRAIN_CHUNK_SIZE + z] == BLOCK_EMPTY)) ||
-				             ((x > 0) && (cells[cubeId - TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY))) << 2;
-
-				//Top
-				faceMask |= (((y == TERRAIN_CHUNK_SIZE - 1) && (topChunkCells != NULL && topChunkCells[x * TERRAIN_CHUNK_SIZE + z] == BLOCK_EMPTY)) ||
-				             ((y < TERRAIN_CHUNK_SIZE - 1) && (cells[cubeId + CHUNK_HORIZONTAL_SLICE] == BLOCK_EMPTY))) << 1;
-
-				//Bottom
-				faceMask |= (((y == 0) && (bottomChunkCells != NULL && bottomChunkCells[(TERRAIN_CHUNK_SIZE - 1) * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z] == BLOCK_EMPTY)) ||
-				             ((y > 0) && (cells[cubeId - CHUNK_HORIZONTAL_SLICE] == BLOCK_EMPTY)));
-
-				//endregion
-
-				if(faceMask == 0) continue;
-
-				if(bufferSize < faceCount + 6)
+				uint32_t extraZeros = cm_trailing_zeros(mask);
+				start += extraZeros;
+				mask >>= extraZeros;
+				
+//				printf("x: %i, y: %i, start: %u\n", x, y, start);
+				uint64_t id = 0;
+				for (uint32_t z = start; z < TERRAIN_CHUNK_SIZE; z++)
 				{
-					uint32_t oldBufferSize = bufferSize;
-					bufferSizeIndex++;
-					bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
-					void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(unsigned int));
-
-					if(newMemory == NULL)
+					if((mask & 1llu) == 0llu) break;
+					start++;
+					id++;
+					mask >>= 1llu;
+					
+					uint32_t cubeId = y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z;
+					uint8_t currentCell = cells[cubeId];
+					if(currentCell == BLOCK_EMPTY) continue;
+					
+					uint8_t faceMask = 0;
+					
+					//region define faces
+					//Front
+					faceMask |= (((z == TERRAIN_CHUNK_SIZE - 1) && (frontChunkCells != NULL && frontChunkCells[y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY)) ||
+					             ((z < TERRAIN_CHUNK_SIZE - 1) && cells[cubeId + 1] == BLOCK_EMPTY)) << 5;
+					
+					//Back
+					faceMask |= (((z == 0) && (backChunkCells != NULL && backChunkCells[y * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + TERRAIN_CHUNK_SIZE - 1] == BLOCK_EMPTY)) ||
+					             ((z > 0) && cells[cubeId - 1] == BLOCK_EMPTY)) << 4;
+					
+					//Right
+					faceMask |= (((x == TERRAIN_CHUNK_SIZE - 1) && (rightChunkCells != NULL && rightChunkCells[y * CHUNK_HORIZONTAL_SLICE + z] == BLOCK_EMPTY)) ||
+					             ((x < TERRAIN_CHUNK_SIZE - 1) && (cells[cubeId + TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY))) << 3;
+					
+					//Left
+					faceMask |= (((x == 0) && (leftChunkCells != NULL && leftChunkCells[y * CHUNK_HORIZONTAL_SLICE + (TERRAIN_CHUNK_SIZE - 1) * TERRAIN_CHUNK_SIZE + z] == BLOCK_EMPTY)) ||
+					             ((x > 0) && (cells[cubeId - TERRAIN_CHUNK_SIZE] == BLOCK_EMPTY))) << 2;
+					
+					//Top
+					faceMask |= (((y == TERRAIN_CHUNK_SIZE - 1) && (topChunkCells != NULL && topChunkCells[x * TERRAIN_CHUNK_SIZE + z] == BLOCK_EMPTY)) ||
+					             ((y < TERRAIN_CHUNK_SIZE - 1) && (cells[cubeId + CHUNK_HORIZONTAL_SLICE] == BLOCK_EMPTY))) << 1;
+					
+					//Bottom
+					faceMask |= (((y == 0) && (bottomChunkCells != NULL && bottomChunkCells[(TERRAIN_CHUNK_SIZE - 1) * CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z] == BLOCK_EMPTY)) ||
+					             ((y > 0) && (cells[cubeId - CHUNK_HORIZONTAL_SLICE] == BLOCK_EMPTY)));
+					
+					//endregion
+					
+					if(faceMask == 0) continue;
+					
+					if(bufferSize < faceCount + 6)
 					{
-						perror("Unable to reallocate memory!!! exiting the program.\n");
-						exit(-1);
+						uint32_t oldBufferSize = bufferSize;
+						bufferSizeIndex++;
+						bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
+						void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(unsigned int));
+						
+						if(newMemory == NULL)
+						{
+							perror("Unable to reallocate memory!!! exiting the program.\n");
+							exit(-1);
+						}
+						else
+						{
+							chunk->buffer = newMemory;
+							buffer = newMemory;
+							memset(&newMemory[oldBufferSize * sizeof(unsigned int)], 0, (bufferSize - oldBufferSize) * sizeof(unsigned int));
+							chunk->flags &= 0xfffffff1;
+							chunk->flags |= bufferSizeIndex << 1;
+						}
 					}
-					else
+					
+					currentCell--;
+					uint32_t blockIndex = (currentCell / TERRAIN_MAX_AXIS_BLOCK_TYPES) << 4 |
+					                      (currentCell % TERRAIN_MAX_AXIS_BLOCK_TYPES);
+					
+					blockIndex <<= 18;
+					blockIndex |= (x << 12) | (y << 6) | z;
+					blockIndex <<= 3;
+					
+					for (int i = 0; i < 6; i++)
 					{
-						chunk->buffer = newMemory;
-						buffer = newMemory;
-						memset(&newMemory[oldBufferSize * sizeof(unsigned int)], 0, (bufferSize - oldBufferSize) * sizeof(unsigned int));
-						chunk->flags &= 0xfffffff1;
-						chunk->flags |= bufferSizeIndex << 1;
+						buffer[faceCount] = blockIndex | (5 - i);
+						faceCount += (faceMask & (1 << i)) >> i;
 					}
-				}
-
-				currentCell--;
-				uint32_t blockIndex = (currentCell / TERRAIN_MAX_AXIS_BLOCK_TYPES) << 4 |
-				                          (currentCell % TERRAIN_MAX_AXIS_BLOCK_TYPES);
-
-				blockIndex <<= 18;
-				blockIndex |= (x << 12) | (y << 6) | z;
-				blockIndex <<= 3;
-
-				for (int i = 0; i < 6; i++)
-				{
-					buffer[faceCount] = blockIndex | (5 - i);
-					faceCount += (faceMask & (1 << i)) >> i;
 				}
 			}
 		}
@@ -866,7 +893,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 static void PassTerrainDataToShader(UniformData* data)
 {
 	uint32_t index[4];
-	memcpy_s(index, sizeof(index), data->chunk, sizeof(data->chunk));
+	memcpy(index, data->chunk, sizeof(ivec3));
 	index[3] = data->chunkId;
 	cm_set_uniform_uvec4(voxelTerrain.u_chunkIndex, index);
 }
@@ -920,7 +947,7 @@ static bool TryUploadGroup(TerrainChunkGroup* group)
 		if(chunk->state == CHUNK_REQUIRES_UPLOAD)
 		{
 			uint32_t id = group->ssboId * TERRAIN_HEIGHT + y;
-			cm_upload_ssbo(voxelTerrain.ssbo, id * TERRAIN_CHUNK_CUBE_COUNT * sizeof(uint32_t ),
+			cm_upload_ssbo(voxelTerrain.ssbo, id * TERRAIN_CHUNK_CUBE_COUNT * sizeof(uint32_t),
 			               faceCount * sizeof(uint32_t), chunk->buffer);
 			chunk->state = CHUNK_READY_TO_DRAW;
 			chunk->flags |= 1;
