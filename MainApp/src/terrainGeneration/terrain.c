@@ -48,7 +48,7 @@ typedef struct
 	uint32_t yId;
 
 	uint32_t* buffer;
-	uint8_t* cells;
+	uint8_t* voxels;
 	uint64_t* opaqueMask;
 }TerrainChunk;
 
@@ -58,7 +58,7 @@ typedef struct
 	ChunkGroupState state;
 	uint32_t id[2];
 	uint32_t ssboId;
-	uint8_t * heightMap;
+	uint8_t* heightMap;
 	bool isAlive;
 }TerrainChunkGroup;
 
@@ -223,7 +223,7 @@ void draw_terrain()
 			vec3 chunkPos = { (float)group->id[0] - TERRAIN_WORLD_EDGE, 0, (float)group->id[1] - TERRAIN_WORLD_EDGE };
 			glm_vec3_mul(chunkPos, (vec3){ TERRAIN_CHUNK_SIZE, 0, TERRAIN_CHUNK_SIZE }, chunkPos);
 			glm_vec3_add(chunkPos, volume.extents, chunkPos);
-			glm_vec3(chunkPos, volume.center);
+			glm_vec3_copy(chunkPos, volume.center);
 
 			if(!cm_is_in_main_frustum(&volume)) continue;
 
@@ -369,7 +369,7 @@ static TerrainChunkGroup InitializeChunkGroup(uint32_t ssboId)
 			{
 				.flags = 0,
 				.buffer = NULL,
-				.cells = CM_MALLOC(TERRAIN_CHUNK_CUBE_COUNT),
+				.voxels = CM_MALLOC(TERRAIN_CHUNK_CUBE_COUNT),
 				.opaqueMask = CM_MALLOC(TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t)),
 				.state = CHUNK_REQUIRES_FACES,
 				.yId = y,
@@ -401,7 +401,7 @@ static void UnloadChunkGroup(TerrainChunkGroup* group)
 		chunk->flags |= bufferSize << 1;
 
 		if(chunk->buffer) memset(chunk->buffer, 0, BUFFER_SIZE_STAGES[bufferSize] * sizeof(uint32_t));
-		memset(chunk->cells, 0, TERRAIN_CHUNK_CUBE_COUNT);
+		memset(chunk->voxels, 0, TERRAIN_CHUNK_CUBE_COUNT);
 		memset(chunk->opaqueMask, 0, TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t));
 	}
 }
@@ -414,7 +414,7 @@ static void DestroyChunkGroup(TerrainChunkGroup* group)
 
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
 	{
-		CM_FREE(group->chunks[y].cells);
+		CM_FREE(group->chunks[y].voxels);
 		if(group->chunks[y].buffer) CM_FREE(group->chunks[y].buffer);
 		CM_FREE(group->chunks[y].opaqueMask);
 	}
@@ -437,12 +437,12 @@ static void RecreateGroup(ivec2 id, int x, int z)
 static void SetupInitialChunks(Camera3D camera)
 {
 	vec3 position;
-	glm_vec3(camera.position, position);
+	glm_vec3_copy(camera.position, position);
 	ivec2 id;
 	id[0] = (int)(position[0] / TERRAIN_CHUNK_SIZE) + TERRAIN_WORLD_EDGE;
 	id[1] = (int)(position[2] / TERRAIN_CHUNK_SIZE) + TERRAIN_WORLD_EDGE;
 
-	glm_ivec3(id, voxelTerrain.loadedCenter);
+	glm_ivec2_copy(id, voxelTerrain.loadedCenter);
 
 	for (int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 		for (int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
@@ -461,8 +461,8 @@ static void ReloadChunks(Camera3D camera)
 {
 	if(voxelTerrain.pool->jobCount > 0) return;
 
-	vec3 position;
-	glm_vec3(camera.position, position);
+	vec3 position = { 0 };
+	glm_vec3_copy(camera.position, position);
 	ivec2 id;
 	id[0] = (int)(position[0] / TERRAIN_CHUNK_SIZE) + TERRAIN_WORLD_EDGE;
 	id[1] = (int)(position[2] / TERRAIN_CHUNK_SIZE) + TERRAIN_WORLD_EDGE;
@@ -640,7 +640,7 @@ static void GeneratePreChunk(uint32_t xId, uint32_t yId, uint32_t zId)
 {
 	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
 	uint8_t* heightMap = group->heightMap;
-	uint8_t* cells = group->chunks[yId].cells;
+	uint8_t* cells = group->chunks[yId].voxels;
 	uint64_t* opaqueMask = group->chunks[yId].opaqueMask;
 	uint32_t groupId[2] = { group->id[0], group->id[1] };
 
@@ -681,7 +681,7 @@ static void GeneratePostChunk(uint32_t xId, uint32_t yId, uint32_t zId)
 {
 	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
 	uint8_t* heightMap = group->heightMap;
-	uint8_t* cells = group->chunks[yId].cells;
+	uint8_t* cells = group->chunks[yId].voxels;
 	for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
 	{
 		for (uint32_t z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
@@ -780,7 +780,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 	TerrainChunk* chunk = &group->chunks[yId];
 	uint32_t* buffer = chunk->buffer;
 	uint64_t* opaqueMask = chunk->opaqueMask;
-	uint8_t* cells = chunk->cells;
+	uint8_t* cells = chunk->voxels;
 
 	uint8_t* frontChunkCells = NULL;
 	uint8_t* backChunkCells = NULL;
@@ -789,12 +789,12 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 	uint8_t* topChunkCells = NULL;
 	uint8_t* bottomChunkCells = NULL;
 
-	if(zId < TERRAIN_VIEW_RANGE - 1) frontChunkCells = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId + 1].chunks[yId].cells;
-	if(zId > 0) backChunkCells = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId - 1].chunks[yId].cells;
-	if(xId < TERRAIN_VIEW_RANGE - 1) rightChunkCells = voxelTerrain.chunkGroups[(xId + 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].cells;
-	if(xId > 0) leftChunkCells = voxelTerrain.chunkGroups[(xId - 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].cells;
-	if(yId < TERRAIN_HEIGHT - 1) topChunkCells = group->chunks[yId + 1].cells;
-	if(yId > 0) bottomChunkCells = group->chunks[yId - 1].cells;
+	if(zId < TERRAIN_VIEW_RANGE - 1) frontChunkCells = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId + 1].chunks[yId].voxels;
+	if(zId > 0) backChunkCells = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId - 1].chunks[yId].voxels;
+	if(xId < TERRAIN_VIEW_RANGE - 1) rightChunkCells = voxelTerrain.chunkGroups[(xId + 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].voxels;
+	if(xId > 0) leftChunkCells = voxelTerrain.chunkGroups[(xId - 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].voxels;
+	if(yId < TERRAIN_HEIGHT - 1) topChunkCells = group->chunks[yId + 1].voxels;
+	if(yId > 0) bottomChunkCells = group->chunks[yId - 1].voxels;
 
 	uint8_t bufferSizeIndex = (chunk->flags & 0b1110) >> 1;
 	uint32_t bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
@@ -861,7 +861,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 						uint32_t oldBufferSize = bufferSize;
 						bufferSizeIndex++;
 						bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
-						void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(unsigned int) * 6);
+						void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(uint32_t) * 6);
 						
 						if(newMemory == NULL)
 						{
@@ -870,9 +870,9 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 						}
 						else
 						{
+							memset((uint32_t*)newMemory + oldBufferSize * 6, 0, (bufferSize - oldBufferSize) * sizeof(uint32_t) * 6);
 							chunk->buffer = newMemory;
 							buffer = newMemory;
-							memset(&newMemory[oldBufferSize * sizeof(unsigned int) * 6], 0, (bufferSize - oldBufferSize) * sizeof(unsigned int) * 6);
 							chunk->flags &= 0xfffffff1;
 							chunk->flags |= bufferSizeIndex << 1;
 						}

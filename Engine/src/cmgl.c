@@ -8,7 +8,7 @@ typedef struct Ubo
 	unsigned int id;
 	unsigned int bindingId;
 	unsigned int dataSize;
-	void* data;
+	const void* data;
 } Ubo;
 
 Ubo CM_UBOS[MAX_NUM_UBOS];
@@ -493,14 +493,14 @@ Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo)
 		if(attrib.type < CM_HALF_FLOAT)
 		{
 			glVertexAttribIPointer(i, (int)attrib.size, attrib.type,
-			                      (int)vao.stride, (void*)offset);
+			                      (int)vao.stride, (void*)(uintptr_t)offset);
 		}
 		else
 		{
 			glVertexAttribPointer(i, (int)attrib.size,
 			                      attrib.type,
 			                      attrib.normalized,
-			                      (int)vao.stride, (void*)offset);
+			                      (int)vao.stride, (void*)(uintptr_t)offset);
 		}
 		
 		offset += attrib.stride;

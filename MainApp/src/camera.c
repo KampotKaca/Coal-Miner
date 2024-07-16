@@ -77,7 +77,7 @@ static void FreeCamera()
 	vec3 right;
 	glm_cross(camera.direction, camera.up, right);
 	
-	vec3 moveDir = { 0, 0 };
+	vec3 moveDir = { 0, 0, 0 };
 	
 	if(cm_is_key_down(KEY_A)) moveDir[0]--;
 	if(cm_is_key_down(KEY_D)) moveDir[0]++;
@@ -88,7 +88,7 @@ static void FreeCamera()
 	
 	glm_normalize(moveDir);
 	
-	if(!glm_vec3_eqv_eps(moveDir, GLM_VEC2_ZERO))
+	if(!glm_vec3_eqv_eps(moveDir, GLM_VEC3_ZERO))
 	{
 		vec3 rDir;
 		glm_vec3_scale(right, moveDir[0] * CAM_FREE_MOVE_SPEED * cm_delta_time_f(), rDir);

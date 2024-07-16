@@ -70,8 +70,8 @@ void cm_begin_mode_3d(Camera3D camera)
 //	glm_scale(CM_CAMERA_UBO.view, (vec3){ -1, 1, 1 });
 	glm_mat4_mul(CM_CAMERA_UBO.projection, CM_CAMERA_UBO.view, CM_CAMERA_UBO.viewProjection);
 
-	glm_vec3(camera.position, CM_CAMERA_UBO.position);
-	glm_vec3(camera.direction, CM_CAMERA_UBO.direction);
+	glm_vec3_copy(camera.position, CM_CAMERA_UBO.position);
+	glm_vec3_copy(camera.direction, CM_CAMERA_UBO.direction);
 
 	upload_ubos();
 	cm_enable_depth_test();
@@ -99,7 +99,7 @@ bool cm_is_in_main_frustum(BoundingVolume* volume)
 	for(int i = 0; i < 6; i++)
 	{
 		vec3 normal;
-		glm_vec3(CM_MAIN_FRUSTUM[i].normal, normal);
+		glm_vec3_copy(CM_MAIN_FRUSTUM[i].normal, normal);
 		float distance = CM_MAIN_FRUSTUM[i].distance;
 
 		if ((glm_vec3_dot(normal, min) + distance > 0) ||
