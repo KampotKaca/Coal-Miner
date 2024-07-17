@@ -14,8 +14,9 @@ typedef struct
 
 typedef struct
 {
-	ThreadJob jobs[MAX_JOBS_IN_THREAD_POOL];
+	ThreadJob* jobs;
 	pthread_t threads[MAX_THREADS_IN_THREAD_POOL];
+	volatile unsigned int capacity;
 	volatile unsigned int jobCount;
 	volatile unsigned int aliveThreadCount;
 	volatile bool isAlive;

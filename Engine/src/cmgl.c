@@ -596,6 +596,7 @@ extern void cm_draw_vao(Vao vao, DrawType drawType)
 {
 	glBindVertexArray(vao.id);
 
+
 	if(vao.vbo.ebo.dataSize == 0)
 	{
 		glDrawArrays(drawType, 0, (int)vao.vbo.vertexCount);

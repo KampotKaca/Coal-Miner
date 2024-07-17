@@ -3,10 +3,10 @@
 
 static void* ExecuteJob(void* args);
 
-ThreadPool* cm_create_thread_pool(uint32_t numThreads)
+ThreadPool* cm_create_thread_pool(uint32_t numThreads, uint32_t initialCapacity)
 {
 	ThreadPool* pool = CM_MALLOC(sizeof(ThreadPool));
-	
+
 	pthread_mutex_init(&pool->lock, NULL);
 	pthread_cond_init(&pool->signal, NULL);
 	
@@ -14,6 +14,8 @@ ThreadPool* cm_create_thread_pool(uint32_t numThreads)
 	pool->aliveThreadCount = 0;
 	pool->isAlive = true;
 	pool->workingThreads = 0;
+	pool->jobs = CM_MALLOC(initialCapacity * sizeof(ThreadJob));
+	pool->capacity = initialCapacity;
 	
 	for (int i = 0; i < numThreads; ++i)
 	{
@@ -28,6 +30,18 @@ ThreadPool* cm_create_thread_pool(uint32_t numThreads)
 void cm_submit_job(ThreadPool* pool, ThreadJob job, bool asLast)
 {
 	pthread_mutex_lock(&pool->lock);
+
+	if(pool->jobCount >= pool->capacity)
+	{
+		pool->capacity *= 2;
+		void* mem = CM_REALLOC(pool->jobs, pool->capacity * sizeof(ThreadJob));
+		if(mem == NULL)
+		{
+			perror("Unable to allocate memory");
+			exit(-1);
+		}
+		else pool->jobs = mem;
+	}
 
 	if(asLast || pool->jobCount == 0) pool->jobs[pool->jobCount] = job;
 	else
