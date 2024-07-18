@@ -34,6 +34,7 @@ uniform uvec4 u_chunkIndex;
 
 out flat uint out_faceId;
 out vec3 out_lPos;
+out vec2 out_facePos;
 
 void main()
 {
@@ -55,21 +56,27 @@ void main()
     {
         case 0: //front
         vertexPos = ivec3(lPos.x, 1 - lPos.y, 1);
+        out_facePos = vertexPos.xy;
         break;
         case 1: //back
         vertexPos = ivec3(lPos, 0);
+        out_facePos = vertexPos.xy;
         break;
         case 2: //right
         vertexPos = ivec3(1, lPos.y, lPos.x);
+        out_facePos = vertexPos.zy;
         break;
         case 3: //left
         vertexPos = ivec3(0, lPos.y, 1 - lPos.x);
+        out_facePos = vertexPos.zy;
         break;
         case 4: //top
         vertexPos = ivec3(lPos.x, 1, lPos.y);
+        out_facePos = vertexPos.xz;
         break;
         case 5: //bottom
         vertexPos = ivec3(lPos.x, 0, 1 - lPos.y);
+        out_facePos = vertexPos.xz;
         break;
     }
 

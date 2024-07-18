@@ -26,6 +26,7 @@ layout(std430, binding = 48) buffer VoxelBuffer
 
 in flat uint out_faceId;
 in vec3 out_lPos;
+in vec2 out_facePos;
 
 out vec4 finalColor;
 
@@ -34,30 +35,15 @@ uniform uvec4 u_chunkIndex;
 
 void main()
 {
-    vec3 pos = out_lPos - vec3(out_faceId == 2, out_faceId == 4, out_faceId == 0);
-
-    vec3 rem = mod(pos, 1.0);
-    ivec3 base = ivec3(pos);
-    uint id = base.y * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE + base.x * TERRAIN_CHUNK_SIZE + base.z;
+    ivec3 voxelPos = ivec3(out_lPos - vec3(out_faceId == 2, out_faceId == 4, out_faceId == 0));
+    uint id = voxelPos.y * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE + voxelPos.x * TERRAIN_CHUNK_SIZE + voxelPos.z;
     uint offset = (id % 4) * 8;
-    uint bufferIndex = u_chunkIndex.w * TERRAIN_CHUNK_VOXEL_COUNT_SPLIT + id / 4;
+    uint bufferIndex = u_chunkIndex.w * TERRAIN_CHUNK_VOXEL_COUNT_SPLIT + uint(id * 0.25);
     uint voxel = (voxels[bufferIndex] & (0xff << offset)) >> offset;
 
     voxel--;
-    vec2 uv = vec2((voxel / UV_SCALE) * UV_STEP, (voxel % UV_SCALE) * UV_STEP);
-
-    switch(out_faceId)
-    {
-        case 0: case 1:
-        uv += rem.xy * UV_STEP;
-        break;
-        case 2: case 3:
-        uv += rem.zy * UV_STEP;
-        break;
-        case 4: case 5:
-        uv += rem.xz * UV_STEP;
-        break;
-    }
+    vec2 uv = vec2((voxel / UV_SCALE) * UV_STEP, (voxel % UV_SCALE) * UV_STEP) +
+                    out_facePos * UV_STEP;
 
     uv.y = 1 - uv.y;
     finalColor = texture(u_surfaceTex[out_faceId], uv);
