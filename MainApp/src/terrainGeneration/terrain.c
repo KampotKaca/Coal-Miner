@@ -839,73 +839,39 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
 	TerrainChunk* chunk = &group->chunks[yId];
 	uint32_t* buffer = chunk->buffer;
-	uint64_t* fbMask = chunk->fbOpaqueMask;
-	uint64_t* rlMask = chunk->rlOpaqueMask;
-	uint64_t* tbMask = chunk->tbOpaqueMask;
+	uint64_t* faceMasks[3] = { chunk->fbOpaqueMask, chunk->rlOpaqueMask, chunk->tbOpaqueMask };
+	uint64_t* chunkMasks[6] = { NULL, NULL, NULL, NULL, NULL, NULL };
 
-	uint64_t* frontChunkOpaqueMask = NULL;
-	uint64_t* backChunkOpaqueMask = NULL;
-	uint64_t* rightChunkOpaqueMask = NULL;
-	uint64_t* leftChunkOpaqueMask = NULL;
-	uint64_t* topChunkOpaqueMask = NULL;
-	uint64_t* bottomChunkOpaqueMask = NULL;
-
-	if(zId < TERRAIN_VIEW_RANGE - 1) frontChunkOpaqueMask = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId + 1].chunks[yId].fbOpaqueMask;
-	if(zId > 0) backChunkOpaqueMask = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId - 1].chunks[yId].fbOpaqueMask;
-	if(xId < TERRAIN_VIEW_RANGE - 1) rightChunkOpaqueMask = voxelTerrain.chunkGroups[(xId + 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].rlOpaqueMask;
-	if(xId > 0) leftChunkOpaqueMask = voxelTerrain.chunkGroups[(xId - 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].rlOpaqueMask;
-	if(yId < TERRAIN_HEIGHT - 1) topChunkOpaqueMask = group->chunks[yId + 1].tbOpaqueMask;
-	if(yId > 0) bottomChunkOpaqueMask = group->chunks[yId - 1].tbOpaqueMask;
+	if(zId < TERRAIN_VIEW_RANGE - 1) chunkMasks[0] = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId + 1].chunks[yId].fbOpaqueMask;
+	if(zId > 0) chunkMasks[1] = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId - 1].chunks[yId].fbOpaqueMask;
+	if(xId < TERRAIN_VIEW_RANGE - 1) chunkMasks[2] = voxelTerrain.chunkGroups[(xId + 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].rlOpaqueMask;
+	if(xId > 0) chunkMasks[3] = voxelTerrain.chunkGroups[(xId - 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].rlOpaqueMask;
+	if(yId < TERRAIN_HEIGHT - 1) chunkMasks[4] = group->chunks[yId + 1].tbOpaqueMask;
+	if(yId > 0) chunkMasks[5] = group->chunks[yId - 1].tbOpaqueMask;
 
 	uint8_t bufferSizeIndex = (chunk->flags & 0b1110) >> 1;
 	uint32_t bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
 
-	//region Front & Back
-	uint64_t frontFaceMask[TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE];
-	uint64_t backFaceMask[TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE];
+	uint64_t faces[6][TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE];
 
-	for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
+	for (uint32_t i = 0; i < 3; ++i)
 	{
-		for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
+		uint64_t* faceMask = faceMasks[i];
+		uint64_t* fMask = faces[i * 2];
+		uint64_t* bMask = faces[i * 2 + 1];
+
+		uint64_t* foMask = chunkMasks[i * 2];
+		uint64_t* boMask = chunkMasks[i * 2 + 1];
+
+		for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
 		{
-			uint32_t id = y * TERRAIN_CHUNK_SIZE + x;
-			CreateFaceMask(fbMask, frontChunkOpaqueMask, backChunkOpaqueMask,
-						   frontFaceMask, backFaceMask, id);
+			for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
+			{
+				uint32_t id = y * TERRAIN_CHUNK_SIZE + x;
+				CreateFaceMask(faceMask, foMask, boMask, fMask, bMask, id);
+			}
 		}
 	}
-	//endregion
-
-	//region Right & Left
-	uint64_t rightFaceMask[TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE];
-	uint64_t leftFaceMask[TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE];
-
-	for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
-	{
-		for (uint32_t z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
-		{
-			uint32_t id = z * TERRAIN_CHUNK_SIZE + y;
-			CreateFaceMask(rlMask, rightChunkOpaqueMask, leftChunkOpaqueMask,
-			               rightFaceMask, leftFaceMask, id);
-		}
-	}
-	//endregion
-
-	//region Top & Bottom
-	uint64_t topFaceMask[TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE];
-	uint64_t bottomFaceMask[TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE];
-
-	for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
-	{
-		for (uint32_t z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
-		{
-			uint32_t id = y * TERRAIN_CHUNK_SIZE + z;
-			CreateFaceMask(tbMask, topChunkOpaqueMask, bottomChunkOpaqueMask,
-			               topFaceMask, bottomFaceMask, id);
-		}
-	}
-	//endregion
-
-	uint64_t* faces[] = { frontFaceMask, backFaceMask, rightFaceMask, leftFaceMask, topFaceMask, bottomFaceMask };
 
 	for (uint32_t i = 0; i < 2; ++i)
 	{
