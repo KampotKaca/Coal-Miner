@@ -49,9 +49,6 @@ typedef struct
 
 	uint32_t* buffer;
 	uint8_t* voxels;
-	uint64_t* fbOpaqueMask;
-	uint64_t* rlOpaqueMask;
-	uint64_t* tbOpaqueMask;
 }TerrainChunk;
 
 typedef struct
@@ -376,9 +373,6 @@ static TerrainChunkGroup InitializeChunkGroup(uint32_t ssboId)
 				.flags = 0,
 				.buffer = NULL,
 				.voxels = CM_MALLOC(TERRAIN_CHUNK_VOXEL_COUNT),
-				.fbOpaqueMask = CM_MALLOC(TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t)),
-				.rlOpaqueMask = CM_MALLOC(TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t)),
-				.tbOpaqueMask = CM_MALLOC(TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t)),
 				.state = CHUNK_REQUIRES_FACES,
 				.yId = y,
 			};
@@ -410,9 +404,6 @@ static void UnloadChunkGroup(TerrainChunkGroup* group)
 
 		if(chunk->buffer) memset(chunk->buffer, 0, BUFFER_SIZE_STAGES[bufferSize] * sizeof(uint32_t));
 		memset(chunk->voxels, 0, TERRAIN_CHUNK_VOXEL_COUNT);
-		memset(chunk->fbOpaqueMask, 0, TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t));
-		memset(chunk->rlOpaqueMask, 0, TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t));
-		memset(chunk->tbOpaqueMask, 0, TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * sizeof(uint64_t));
 	}
 }
 
@@ -426,9 +417,6 @@ static void DestroyChunkGroup(TerrainChunkGroup* group)
 	{
 		CM_FREE(group->chunks[y].voxels);
 		if(group->chunks[y].buffer) CM_FREE(group->chunks[y].buffer);
-		CM_FREE(group->chunks[y].fbOpaqueMask);
-		CM_FREE(group->chunks[y].rlOpaqueMask);
-		CM_FREE(group->chunks[y].tbOpaqueMask);
 	}
 }
 
@@ -653,9 +641,6 @@ static void GeneratePreChunk(uint32_t xId, uint32_t yId, uint32_t zId)
 	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
 	uint8_t* heightMap = group->heightMap;
 	uint8_t* cells = group->chunks[yId].voxels;
-	uint64_t* fbMask = group->chunks[yId].fbOpaqueMask;
-	uint64_t* rlMask = group->chunks[yId].rlOpaqueMask;
-	uint64_t* tbMask = group->chunks[yId].tbOpaqueMask;
 	uint32_t groupId[2] = { group->id[0], group->id[1] };
 
 	for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
@@ -682,9 +667,6 @@ static void GeneratePreChunk(uint32_t xId, uint32_t yId, uint32_t zId)
 					uint32_t id = y * TERRAIN_CHUNK_HORIZONTAL_SLICE + xzId;
 					uint8_t block = get_block_type(caveValue);
 					cells[id] = block;
-					fbMask[y * TERRAIN_CHUNK_SIZE + x] |= 1llu << z;
-					rlMask[z * TERRAIN_CHUNK_SIZE + y] |= 1llu << x;
-					tbMask[x * TERRAIN_CHUNK_SIZE + z] |= 1llu << y;
 				}
 			}
 		}
@@ -810,13 +792,17 @@ static inline void AddFace(uint32_t* buffer, uint32_t faceCount,
 	buffer[offset + 11] = size;
 }
 
-static inline void CreateFaceMask(const uint64_t* oMask, const uint64_t* fMask, const uint64_t* bMask,
+static inline uint32_t ToVoxelId(uint32_t x, uint32_t y, uint32_t z)
+{
+	return y * TERRAIN_CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z;
+}
+
+static inline void CreateFaceMask(const uint64_t* oMask, bool fVoxelExists, bool bVoxelExists,
                                   uint64_t* tf, uint64_t* tb, uint32_t id)
 {
-	const static uint64_t endMask = 1ull << (TERRAIN_CHUNK_SIZE - 1ull);
 	uint64_t mask = oMask[id];
-	tf[id] = (mask & ~(mask >> 1ull)) & ~((uint64_t)(fMask == NULL || (fMask[id] & 1ull)) << (TERRAIN_CHUNK_SIZE - 1ull));
-	tb[id] = (mask & ~(mask << 1ull)) & ~(bMask == NULL || (bMask[id] & endMask));
+	tf[id] = (mask & ~(mask >> 1ull)) & ~((uint64_t)fVoxelExists << (TERRAIN_CHUNK_SIZE - 1ull));
+	tb[id] = (mask & ~(mask << 1ull)) & ~(bVoxelExists);
 }
 
 static inline uint32_t GreedyMeshing(uint32_t x, uint32_t y, uint32_t offset,
@@ -887,37 +873,60 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
 	TerrainChunk* chunk = &group->chunks[yId];
 	uint32_t* buffer = chunk->buffer;
-	uint64_t* faceMasks[3] = { chunk->fbOpaqueMask, chunk->rlOpaqueMask, chunk->tbOpaqueMask };
-	uint64_t* chunkMasks[6] = { NULL, NULL, NULL, NULL, NULL, NULL };
 
-	if(zId < TERRAIN_VIEW_RANGE - 1) chunkMasks[0] = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId + 1].chunks[yId].fbOpaqueMask;
-	if(zId > 0) chunkMasks[1] = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId - 1].chunks[yId].fbOpaqueMask;
-	if(xId < TERRAIN_VIEW_RANGE - 1) chunkMasks[2] = voxelTerrain.chunkGroups[(xId + 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].rlOpaqueMask;
-	if(xId > 0) chunkMasks[3] = voxelTerrain.chunkGroups[(xId - 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].rlOpaqueMask;
-	if(yId < TERRAIN_HEIGHT - 1) chunkMasks[4] = group->chunks[yId + 1].tbOpaqueMask;
-	if(yId > 0) chunkMasks[5] = group->chunks[yId - 1].tbOpaqueMask;
+	//region MaskCreation
+	uint8_t* voxels = chunk->voxels;
+	uint64_t fbMask[TERRAIN_CHUNK_HORIZONTAL_SLICE],
+	         rlMask[TERRAIN_CHUNK_HORIZONTAL_SLICE],
+			 tbMask[TERRAIN_CHUNK_HORIZONTAL_SLICE];
+	memset(fbMask, 0, TERRAIN_CHUNK_HORIZONTAL_SLICE * sizeof(uint64_t));
+	memset(rlMask, 0, TERRAIN_CHUNK_HORIZONTAL_SLICE * sizeof(uint64_t));
+	memset(tbMask, 0, TERRAIN_CHUNK_HORIZONTAL_SLICE * sizeof(uint64_t));
+
+	for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
+	{
+		for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
+		{
+			for (uint32_t z = 0; z < TERRAIN_CHUNK_SIZE; ++z)
+			{
+				if(voxels[ToVoxelId(x, y, z)] != BLOCK_EMPTY)
+				{
+					fbMask[y * TERRAIN_CHUNK_SIZE + x] |= 1llu << z;
+					rlMask[z * TERRAIN_CHUNK_SIZE + y] |= 1llu << x;
+					tbMask[x * TERRAIN_CHUNK_SIZE + z] |= 1llu << y;
+				}
+			}
+		}
+	}
+	//endregion
+
+	uint8_t *frontChunk = NULL, *backChunk = NULL,
+	        *rightChunk = NULL, *leftChunk = NULL,
+			*topChunk = NULL, *bottomChunk = NULL;
+
+	if(zId < TERRAIN_VIEW_RANGE - 1) frontChunk = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId + 1].chunks[yId].voxels;
+	if(zId > 0) backChunk = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId - 1].chunks[yId].voxels;
+	if(xId < TERRAIN_VIEW_RANGE - 1) rightChunk = voxelTerrain.chunkGroups[(xId + 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].voxels;
+	if(xId > 0) leftChunk = voxelTerrain.chunkGroups[(xId - 1) * TERRAIN_VIEW_RANGE + zId].chunks[yId].voxels;
+	if(yId < TERRAIN_HEIGHT - 1) topChunk = group->chunks[yId + 1].voxels;
+	if(yId > 0) bottomChunk = group->chunks[yId - 1].voxels;
 
 	uint8_t bufferSizeIndex = (chunk->flags & 0b1110) >> 1;
 	uint32_t bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
 
-	uint64_t faces[6][TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE];
+	uint64_t fFaces[TERRAIN_CHUNK_HORIZONTAL_SLICE];
+	uint64_t bFaces[TERRAIN_CHUNK_HORIZONTAL_SLICE];
+	uint64_t *faces[6] = {fFaces, bFaces, fFaces, bFaces, fFaces, bFaces };
 
-	for (uint32_t i = 0; i < 3; ++i)
+	//region Front&Back
+	for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
 	{
-		uint64_t* faceMask = faceMasks[i];
-		uint64_t* fMask = faces[i * 2];
-		uint64_t* bMask = faces[i * 2 + 1];
-
-		uint64_t* foMask = chunkMasks[i * 2];
-		uint64_t* boMask = chunkMasks[i * 2 + 1];
-
-		for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
+		for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
 		{
-			for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
-			{
-				uint32_t id = y * TERRAIN_CHUNK_SIZE + x;
-				CreateFaceMask(faceMask, foMask, boMask, fMask, bMask, id);
-			}
+			uint32_t id = y * TERRAIN_CHUNK_SIZE + x;
+			bool frontVoxelExists = frontChunk == NULL || frontChunk[ToVoxelId(x, y, 0)];
+			bool backVoxelExists = backChunk == NULL || backChunk[ToVoxelId(x, y, (TERRAIN_CHUNK_SIZE - 1))];
+			CreateFaceMask(fbMask, frontVoxelExists, backVoxelExists, fFaces, bFaces, id);
 		}
 	}
 
@@ -943,6 +952,19 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 			}
 		}
 	}
+	//endregion
+
+	//region Right&Left
+	for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
+	{
+		for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
+		{
+			uint32_t id = y * TERRAIN_CHUNK_SIZE + x;
+			bool frontVoxelExists = rightChunk == NULL || rightChunk[ToVoxelId(0, x, y)];
+			bool backVoxelExists = leftChunk == NULL || leftChunk[ToVoxelId((TERRAIN_CHUNK_SIZE - 1), x, y)];
+			CreateFaceMask(rlMask, frontVoxelExists, backVoxelExists, fFaces, bFaces, id);
+		}
+	}
 
 	for (uint32_t i = 2; i < 4; ++i)
 	{
@@ -964,6 +986,19 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 					faceCount++;
 				}
 			}
+		}
+	}
+	//endregion
+
+	//region Top&Bottom
+	for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
+	{
+		for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
+		{
+			uint32_t id = y * TERRAIN_CHUNK_SIZE + x;
+			bool frontVoxelExists = topChunk == NULL || topChunk[ToVoxelId(y, 0, x)];
+			bool backVoxelExists = bottomChunk == NULL || bottomChunk[ToVoxelId(y, (TERRAIN_CHUNK_SIZE - 1), x)];
+			CreateFaceMask(tbMask, frontVoxelExists, backVoxelExists, fFaces, bFaces, id);
 		}
 	}
 
@@ -989,6 +1024,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 			}
 		}
 	}
+	//endregion
 
 #undef RECT_FACE
 	chunk->flags &= 0x0000ffff;
