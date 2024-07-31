@@ -313,7 +313,7 @@ static void LoadBuffers()
 	{
 		VaoAttribute attributes[] =
 		{
-			{ 1, CM_UINT, false, 1 * sizeof(unsigned int) },
+			{ .size = 2, .type = CM_UINT, .normalized = false, .stride = 2 * sizeof(uint32_t) },
 		};
 		
 		Vbo vbo = { 0 };
@@ -789,15 +789,25 @@ static void T_GroupFacesCreationFinished(void* args)
 		group->chunks[y].state = CHUNK_REQUIRES_UPLOAD;
 }
 
-static inline void AddFace(uint32_t* buffer, uint32_t faceCount, uint32_t block)
+static inline void AddFace(uint32_t* buffer, uint32_t faceCount,
+						   uint32_t x, uint32_t y, uint32_t z, uint32_t face, uint32_t size)
 {
+	uint32_t offset = faceCount * 12;
+	uint32_t block = (x << 15) | (y << 9) | (z << 3) | face;
+
 	block <<= 2;
-	buffer[faceCount * 6 + 0] = block | 0b00;
-	buffer[faceCount * 6 + 1] = block | 0b01;
-	buffer[faceCount * 6 + 2] = block | 0b11;
-	buffer[faceCount * 6 + 3] = block | 0b00;
-	buffer[faceCount * 6 + 4] = block | 0b11;
-	buffer[faceCount * 6 + 5] = block | 0b10;
+	buffer[offset + 0]  = block | 0b00;
+	buffer[offset + 1]  = size;
+	buffer[offset + 2]  = block | 0b01;
+	buffer[offset + 3]  = size;
+	buffer[offset + 4]  = block | 0b11;
+	buffer[offset + 5]  = size;
+	buffer[offset + 6]  = block | 0b00;
+	buffer[offset + 7]  = size;
+	buffer[offset + 8]  = block | 0b11;
+	buffer[offset + 9]  = size;
+	buffer[offset + 10] = block | 0b10;
+	buffer[offset + 11] = size;
 }
 
 static inline void CreateFaceMask(const uint64_t* oMask, const uint64_t* fMask, const uint64_t* bMask,
@@ -813,12 +823,12 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 {
 	//region defines
 #define BUFFER_CHECK \
-	if(bufferSize < faceCount + 6)\
+	if(bufferSize < faceCount + 12)\
 	{\
 		uint32_t oldBufferSize = bufferSize;\
 		bufferSizeIndex++;\
 		bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];\
-		void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(uint32_t) * 6);\
+		void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(uint32_t) * 12);\
 		if(newMemory == NULL)\
 		{\
 			perror("Unable to reallocate memory!!! exiting the program.\n");\
@@ -826,7 +836,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 		}\
 		else\
 		{\
-			memset((uint32_t*)newMemory + oldBufferSize * 6, 0, (bufferSize - oldBufferSize) * sizeof(uint32_t) * 6);\
+			memset((uint32_t*)newMemory + oldBufferSize * 12, 0, (bufferSize - oldBufferSize) * sizeof(uint32_t) * 12);\
 			chunk->buffer = newMemory;\
 			buffer = newMemory;\
 			chunk->flags &= 0xfffffff1;\
@@ -889,12 +899,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					uint32_t blockIndex = (x << 12) | (y << 6) | z;
-					blockIndex <<= 11;
-					// FaceId | SizeX | SizeY
-					blockIndex |= (i << 8) | (1 << 4) | 1;
-
-					AddFace(buffer, faceCount, blockIndex);
+					AddFace(buffer, faceCount, x, y, z, i, 0);
 					faceCount++;
 				}
 			}
@@ -917,12 +922,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					uint32_t blockIndex = (x << 12) | (y << 6) | z;
-					blockIndex <<= 11;
-					// FaceId | SizeX | SizeY
-					blockIndex |= (i << 8) | (1 << 4) | 1;
-
-					AddFace(buffer, faceCount, blockIndex);
+					AddFace(buffer, faceCount, x, y, z, i, 0);
 					faceCount++;
 				}
 			}
@@ -945,12 +945,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					uint32_t blockIndex = (x << 12) | (y << 6) | z;
-					blockIndex <<= 11;
-					// FaceId | SizeX | SizeY
-					blockIndex |= (i << 8) | (1 << 4) | 1;
-
-					AddFace(buffer, faceCount, blockIndex);
+					AddFace(buffer, faceCount, x, y, z, i, 0);
 					faceCount++;
 				}
 			}
@@ -960,7 +955,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 #undef RECT_FACE
 	chunk->flags &= 0x0000ffff;
 	chunk->flags |= faceCount << 16;
-	voxelTerrain.chunkVaos[group->ssboId * TERRAIN_HEIGHT + yId].vbo.vertexCount = faceCount * 6;
+	voxelTerrain.chunkVaos[group->ssboId * TERRAIN_HEIGHT + yId].vbo.vertexCount = faceCount * 12;
 
 #undef BUFFER_CHECK
 }
@@ -1026,7 +1021,7 @@ static bool TryUploadGroup(TerrainChunkGroup* group)
 		if(chunk->state == CHUNK_REQUIRES_UPLOAD)
 		{
 			uint32_t id = group->ssboId * TERRAIN_HEIGHT + y;
-			cm_reupload_vbo(&voxelTerrain.chunkVaos[id].vbo, faceCount * sizeof(uint32_t) * 6, chunk->buffer);
+			cm_reupload_vbo(&voxelTerrain.chunkVaos[id].vbo, faceCount * sizeof(uint32_t) * 12, chunk->buffer);
 			cm_upload_ssbo(voxelTerrain.voxelsSsbo, id * TERRAIN_CHUNK_VOXEL_COUNT, TERRAIN_CHUNK_VOXEL_COUNT, chunk->voxels);
 			chunk->state = CHUNK_READY_TO_DRAW;
 			chunk->flags |= 1;
