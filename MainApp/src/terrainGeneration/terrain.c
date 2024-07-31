@@ -899,7 +899,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					AddFace(buffer, faceCount, x, y, z, i, 0);
+					AddFace(buffer, faceCount, x, y, z, i, (1 << 6) | 1);
 					faceCount++;
 				}
 			}
@@ -922,7 +922,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					AddFace(buffer, faceCount, x, y, z, i, 0);
+					AddFace(buffer, faceCount, x, y, z, i, (1 << 6) | 1);
 					faceCount++;
 				}
 			}
@@ -945,7 +945,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					AddFace(buffer, faceCount, x, y, z, i, 0);
+					AddFace(buffer, faceCount, x, y, z, i, (1 << 6) | 1);
 					faceCount++;
 				}
 			}

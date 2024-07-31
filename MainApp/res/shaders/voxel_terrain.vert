@@ -58,32 +58,32 @@ void main()
     {
         case 0: //front
         vertexPos = ivec3(lPos.x, 1 - lPos.y, 1);
-//        vertexPos.xy *= size;
+        vertexPos.xy *= size;
         out_facePos = vertexPos.xy;
         break;
         case 1: //back
         vertexPos = ivec3(lPos, 0);
-//        vertexPos.xy *= size;
+        vertexPos.xy *= size;
         out_facePos = vertexPos.xy;
         break;
         case 2: //right
         vertexPos = ivec3(1, lPos.y, lPos.x);
-//        vertexPos.zy *= size;
+        vertexPos.zy *= size;
         out_facePos = vertexPos.zy;
         break;
         case 3: //left
         vertexPos = ivec3(0, lPos.y, 1 - lPos.x);
-//        vertexPos.zy *= size;
+        vertexPos.zy *= size;
         out_facePos = vertexPos.zy;
         break;
         case 4: //top
         vertexPos = ivec3(lPos.x, 1, lPos.y);
-//        vertexPos.xz *= size;
+        vertexPos.xz *= size;
         out_facePos = vertexPos.xz;
         break;
         case 5: //bottom
         vertexPos = ivec3(lPos.x, 0, 1 - lPos.y);
-//        vertexPos.xz *= size;
+        vertexPos.xz *= size;
         out_facePos = vertexPos.xz;
         break;
     }

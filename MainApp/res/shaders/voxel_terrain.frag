@@ -43,7 +43,7 @@ void main()
 
     voxel--;
     vec2 uv = vec2((voxel / UV_SCALE) * UV_STEP, (voxel % UV_SCALE) * UV_STEP) +
-                    out_facePos * UV_STEP;
+                    mod(out_facePos, 1.0f) * UV_STEP;
 
     uv.y = 1 - uv.y;
     finalColor = texture(u_surfaceTex[out_faceId], uv);
