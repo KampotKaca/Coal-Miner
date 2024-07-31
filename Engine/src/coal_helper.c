@@ -50,3 +50,10 @@ uint32_t cm_trailing_ones(uint64_t n)
 {
 	return n ? __builtin_ctzll(~n) : 64u;
 }
+
+uint32_t cm_pow2(uint32_t n)
+{
+	uint32_t num = 1;
+	for (uint32_t i = 0; i < n; ++i) num *= 2;
+	return num;
+}

@@ -9,13 +9,7 @@
 #define TERRAIN_CHUNK_VOXEL_COUNT TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE
 #define TERRAIN_CHUNK_COUNT TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE * TERRAIN_HEIGHT
 #define TERRAIN_CHUNK_HORIZONTAL_SLICE TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE
-
-const uint32_t BUFFER_SIZE_STAGES[] =
-{
-	0, 128, 512, TERRAIN_CHUNK_VOXEL_COUNT / 16,
-	TERRAIN_CHUNK_VOXEL_COUNT / 8, TERRAIN_CHUNK_VOXEL_COUNT / 4,
-	TERRAIN_CHUNK_VOXEL_COUNT / 2, TERRAIN_CHUNK_VOXEL_COUNT
-};
+#define TERRAIN_MIN_BUFFER_SIZE 128
 
 typedef enum
 {
@@ -42,7 +36,7 @@ typedef struct
 {
 	ChunkState state;
 	//1bit is uploaded
-	//3bit buffer size
+	//6bit buffer size
 	//16bit faceCount
 	uint32_t flags;
 	uint32_t yId;
@@ -398,11 +392,11 @@ static void UnloadChunkGroup(TerrainChunkGroup* group)
 	{
 		TerrainChunk* chunk = &group->chunks[y];
 		chunk->state = CHUNK_REQUIRES_FACES;
-		uint8_t bufferSize = (chunk->flags & 0b0111) >> 1;
+		uint8_t bufferSize = (chunk->flags & 0b1111110) >> 1;
 		chunk->flags &= 0;
 		chunk->flags |= bufferSize << 1;
 
-		if(chunk->buffer) memset(chunk->buffer, 0, BUFFER_SIZE_STAGES[bufferSize] * sizeof(uint32_t));
+		if(chunk->buffer) memset(chunk->buffer, 0, TERRAIN_MIN_BUFFER_SIZE * cm_pow2(bufferSize) * sizeof(uint32_t));
 		memset(chunk->voxels, 0, TERRAIN_CHUNK_VOXEL_COUNT);
 	}
 }
@@ -710,7 +704,7 @@ static void SendFaceCreationJob(uint32_t x, uint32_t y, uint32_t z)
 	TerrainChunk* chunk = &voxelTerrain.chunkGroups[x * TERRAIN_VIEW_RANGE + z].chunks[y];
 	chunk->state = CHUNK_CREATING_FACES;
 	
-	uint32_t * args = CM_MALLOC(3 * sizeof(uint32_t ));
+	uint32_t * args = CM_MALLOC(3 * sizeof(uint32_t));
 	args[0] = x;
 	args[1] = y;
 	args[2] = z;
@@ -851,7 +845,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 	{\
 		uint32_t oldBufferSize = bufferSize;\
 		bufferSizeIndex++;\
-		bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];\
+		bufferSize = TERRAIN_MIN_BUFFER_SIZE * cm_pow2(bufferSizeIndex);\
 		void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(uint32_t) * 12);\
 		if(newMemory == NULL)\
 		{\
@@ -911,8 +905,8 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 	if(yId < TERRAIN_HEIGHT - 1) topChunk = group->chunks[yId + 1].voxels;
 	if(yId > 0) bottomChunk = group->chunks[yId - 1].voxels;
 
-	uint8_t bufferSizeIndex = (chunk->flags & 0b1110) >> 1;
-	uint32_t bufferSize = BUFFER_SIZE_STAGES[bufferSizeIndex];
+	uint32_t bufferSizeIndex = (chunk->flags & 0b1111110) >> 1;
+	uint32_t bufferSize = (bufferSizeIndex > 0) * TERRAIN_MIN_BUFFER_SIZE * cm_pow2(bufferSizeIndex);
 
 	uint64_t fFaces[TERRAIN_CHUNK_HORIZONTAL_SLICE];
 	uint64_t bFaces[TERRAIN_CHUNK_HORIZONTAL_SLICE];
