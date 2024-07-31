@@ -843,10 +843,8 @@ static inline uint32_t GreedyMeshing(uint32_t x, uint32_t y, uint32_t offset,
 	{
 		for (uint32_t sa = x; sa < saEnd; ++sa)
 		{
-			uint32_t id = la * TERRAIN_CHUNK_SIZE + sa;
-			uint64_t bitMap = currentFace[id];
-
-			if(!((bitMap & bitShift) > 0)) return (sizeX << 6) | sizeY;
+			if((currentFace[la * TERRAIN_CHUNK_SIZE + sa] & bitShift) == 0)
+				goto end;
 		}
 
 		for (uint32_t sa = x; sa < saEnd; ++sa)
@@ -855,6 +853,7 @@ static inline uint32_t GreedyMeshing(uint32_t x, uint32_t y, uint32_t offset,
 		sizeY++;
 	}
 
+	end:
 	return (sizeX << 6) | sizeY;
 }
 
@@ -961,8 +960,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-//					AddFace(buffer, faceCount, x, y, z, i, GreedyMeshing(y, z, x, currentFace));
-					AddFace(buffer, faceCount, x, y, z, i, (1 << 6) | 1);
+					AddFace(buffer, faceCount, x, y, z, i, GreedyMeshing(y, z, x, currentFace));
 					faceCount++;
 				}
 			}
@@ -985,7 +983,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					AddFace(buffer, faceCount, x, y, z, i, (1 << 6) | 1);
+					AddFace(buffer, faceCount, x, y, z, i, GreedyMeshing(z, x, y, currentFace));
 					faceCount++;
 				}
 			}
