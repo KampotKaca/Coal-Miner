@@ -819,6 +819,28 @@ static inline void CreateFaceMask(const uint64_t* oMask, const uint64_t* fMask, 
 	tb[id] = (mask & ~(mask << 1ull)) & ~(bMask == NULL || (bMask[id] & endMask));
 }
 
+static inline uint32_t GreedyMeshing(uint32_t x, uint32_t y, uint32_t offset,
+									 uint64_t* currentFace)
+{
+	uint32_t sizeX = 1u, sizeY = 1u;
+
+	for (uint32_t sa = x + 1; sa < TERRAIN_CHUNK_SIZE; ++sa)
+	{
+		uint32_t id = y * TERRAIN_CHUNK_SIZE + sa;
+		uint64_t bitMap = currentFace[id];
+		uint64_t bitShift = 1llu << offset;
+
+		if(bitMap & bitShift)
+		{
+			sizeX++;
+			currentFace[id] = bitMap & (~bitShift);
+		}
+		else break;
+	}
+
+	return (sizeX << 6) | sizeY;
+}
+
 static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 {
 	//region defines
@@ -895,11 +917,11 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId)
 				while(mask != 0llu)
 				{
 					uint32_t z = cm_trailing_zeros(mask);
-					mask &= mask - 1;
+					mask &= mask - 1u;
 
 					BUFFER_CHECK
 
-					AddFace(buffer, faceCount, x, y, z, i, (1 << 6) | 1);
+					AddFace(buffer, faceCount, x, y, z, i, GreedyMeshing(x, y, z, currentFace));
 					faceCount++;
 				}
 			}
