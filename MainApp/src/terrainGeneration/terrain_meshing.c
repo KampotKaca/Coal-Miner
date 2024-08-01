@@ -17,7 +17,7 @@ void setup_terrain_meshing(VoxelTerrain* terrain)
 void send_terrain_face_creation_job(uint32_t x, uint32_t y, uint32_t z)
 {
 	TerrainChunk* chunk = &m_terrain->chunkGroups[x * TERRAIN_VIEW_RANGE + z].chunks[y];
-	chunk->state = CHUNK_CREATING_FACES;
+	chunk->flags.state = CHUNK_CREATING_FACES;
 
 	uint32_t * args = CM_MALLOC(3 * sizeof(uint32_t));
 	args[0] = x;
@@ -45,7 +45,7 @@ void send_terrain_group_face_creation_job(uint32_t x, uint32_t z)
 	TerrainChunkGroup* group = &m_terrain->chunkGroups[x * TERRAIN_VIEW_RANGE + z];
 
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
-		group->chunks[y].state = CHUNK_CREATING_FACES;
+		group->chunks[y].flags.state = CHUNK_CREATING_FACES;
 
 	cm_submit_job(m_terrain->pool, job, true);
 }
@@ -60,7 +60,7 @@ static void T_CreateTerrainChunkFaces(void* args)
 static void T_TerrainChunkFacesCreationFinished(void* args)
 {
 	uint32_t * cArgs = (uint32_t *)args;
-	m_terrain->chunkGroups[cArgs[0] * TERRAIN_VIEW_RANGE + cArgs[2]].chunks[cArgs[1]].state = CHUNK_REQUIRES_UPLOAD;
+	m_terrain->chunkGroups[cArgs[0] * TERRAIN_VIEW_RANGE + cArgs[2]].chunks[cArgs[1]].flags.state = CHUNK_REQUIRES_UPLOAD;
 }
 
 static void T_TerrainCreateGroupFaces(void* args)
@@ -76,7 +76,7 @@ static void T_TerrainGroupFacesCreationFinished(void* args)
 	TerrainChunkGroup* group = &m_terrain->chunkGroups[cArgs[0] * TERRAIN_VIEW_RANGE + cArgs[1]];
 
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
-		group->chunks[y].state = CHUNK_REQUIRES_UPLOAD;
+		group->chunks[y].flags.state = CHUNK_REQUIRES_UPLOAD;
 }
 //endregion
 
@@ -174,8 +174,7 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 			memset((uint32_t*)newMemory + oldBufferSize * 12, 0, (bufferSize - oldBufferSize) * sizeof(uint32_t) * 12);\
 			chunk->buffer = newMemory;\
 			buffer = newMemory;\
-			chunk->flags &= 0xfffffff1;\
-			chunk->flags |= bufferSizeIndex << 1;\
+			chunk->flags.bufferSizeIndex = bufferSizeIndex;\
 		}\
 	}
 //endregion
@@ -222,7 +221,7 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 	if(yId < TERRAIN_HEIGHT - 1) topChunk = group->chunks[yId + 1].voxels;
 	if(yId > 0) bottomChunk = group->chunks[yId - 1].voxels;
 
-	uint32_t bufferSizeIndex = (chunk->flags & 0b1111110) >> 1;
+	uint32_t bufferSizeIndex = chunk->flags.bufferSizeIndex;
 	uint32_t bufferSize = (bufferSizeIndex > 0) * TERRAIN_MIN_BUFFER_SIZE * cm_pow2(bufferSizeIndex);
 
 	uint64_t fFaces[TERRAIN_CHUNK_HORIZONTAL_SLICE];
@@ -338,8 +337,7 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 	//endregion
 
 #undef RECT_FACE
-	chunk->flags &= 0x0000ffff;
-	chunk->flags |= faceCount << 16;
+	chunk->flags.faceCount = faceCount;
 	m_terrain->chunkVaos[group->ssboId * TERRAIN_HEIGHT + yId].vbo.vertexCount = faceCount * 12;
 
 #undef BUFFER_CHECK

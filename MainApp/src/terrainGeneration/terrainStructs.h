@@ -32,15 +32,19 @@ typedef struct
 	ivec3 chunk;
 } UniformData;
 
+struct TerrainChunkFlags
+{
+	uint32_t isUploaded:1;
+	uint32_t bufferSizeIndex:6;
+	uint32_t yId:4;
+	uint32_t state:5;
+	uint32_t faceCount:16;
+}__attribute__((packed));
+typedef struct TerrainChunkFlags TerrainChunkFlags;
+
 typedef struct
 {
-	ChunkState state;
-	//1bit is uploaded
-	//6bit buffer size
-	//16bit faceCount
-	uint32_t flags;
-	uint32_t yId;
-
+	TerrainChunkFlags flags;
 	uint32_t* buffer;
 	uint8_t* voxels;
 }TerrainChunk;

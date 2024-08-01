@@ -103,7 +103,7 @@ void update_terrain()
 		{
 			for (uint32_t y = 0; y < TERRAIN_HEIGHT; ++y)
 			{
-				uint32_t bufferSizeIndex = (voxelTerrain.chunkGroups[i].chunks[y].flags & 0b1111110) >> 1;
+				uint32_t bufferSizeIndex = voxelTerrain.chunkGroups[i].chunks[y].flags.bufferSizeIndex;
 				uint32_t bufferSize = (bufferSizeIndex > 0) * TERRAIN_MIN_BUFFER_SIZE * cm_pow2(bufferSizeIndex);
 				size += bufferSize * sizeof(uint32_t) * 12;
 			}
@@ -155,7 +155,7 @@ void draw_terrain()
 			for (uint32_t y = 0; y < TERRAIN_HEIGHT; ++y)
 			{
 				TerrainChunk* chunk = &group->chunks[y];
-				uint16_t faceCount = (chunk->flags & 0xffff0000) >> 16;
+				uint16_t faceCount = chunk->flags.faceCount;
 
 				if(faceCount > 0)
 				{
@@ -168,7 +168,7 @@ void draw_terrain()
 
 					data.chunkId = group->ssboId * TERRAIN_HEIGHT + y;
 
-					if(chunk->flags & 1)
+					if(chunk->flags.isUploaded)
 					{
 						PassTerrainDataToShader(&data);
 						cm_draw_vao(voxelTerrain.chunkVaos[data.chunkId], CM_TRIANGLES);
@@ -272,7 +272,8 @@ static void LoadTerrainChunks()
 				{
 					TerrainChunkGroup group = voxelTerrain.chunkGroups[x * TERRAIN_VIEW_RANGE + z];
 					for (int y = 0; y < TERRAIN_HEIGHT; ++y)
-						if(group.chunks[y].state == CHUNK_REQUIRES_FACES) send_terrain_face_creation_job(x, y, z);
+						if(group.chunks[y].flags.state == CHUNK_REQUIRES_FACES)
+							send_terrain_face_creation_job(x, y, z);
 				}
 			}
 		}
@@ -296,8 +297,6 @@ static TerrainChunkGroup InitializeChunkGroup(uint32_t ssboId)
 				.flags = 0,
 				.buffer = NULL,
 				.voxels = CM_MALLOC(TERRAIN_CHUNK_VOXEL_COUNT),
-				.state = CHUNK_REQUIRES_FACES,
-				.yId = y,
 			};
 
 		group.chunks[y] = chunk;
@@ -320,12 +319,17 @@ static void UnloadChunkGroup(TerrainChunkGroup* group)
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
 	{
 		TerrainChunk* chunk = &group->chunks[y];
-		chunk->state = CHUNK_REQUIRES_FACES;
-		uint8_t bufferSize = (chunk->flags & 0b1111110) >> 1;
-		chunk->flags &= 0;
-		chunk->flags |= bufferSize << 1;
+		chunk->flags.state = CHUNK_REQUIRES_FACES;
+		if(chunk->buffer)
+		{
+			CM_FREE(chunk->buffer);
+			chunk->buffer = NULL;
+		}
 
-		if(chunk->buffer) memset(chunk->buffer, 0, TERRAIN_MIN_BUFFER_SIZE * cm_pow2(bufferSize) * sizeof(uint32_t));
+		chunk->flags.isUploaded = 0;
+		chunk->flags.bufferSizeIndex = 0;
+		chunk->flags.faceCount = 0;
+
 		memset(chunk->voxels, 0, TERRAIN_CHUNK_VOXEL_COUNT);
 	}
 }
@@ -377,7 +381,7 @@ static void SetRequiresFaces(uint32_t x, uint32_t z)
 	TerrainChunkGroup* group = &voxelTerrain.chunkGroups[x * TERRAIN_VIEW_RANGE + z];
 
 	for (uint32_t y = 0; y < TERRAIN_HEIGHT; ++y)
-		group->chunks[y].state = CHUNK_REQUIRES_FACES;
+		group->chunks[y].flags.state = CHUNK_REQUIRES_FACES;
 }
 
 static void ReloadChunks(Camera3D camera)
@@ -519,7 +523,7 @@ static bool AllChunksAreLoaded()
 		{
 			for (uint32_t y = 0; y < TERRAIN_HEIGHT; ++y)
 			{
-				if(voxelTerrain.chunkGroups[i].chunks[y].state < CHUNK_REQUIRES_UPLOAD)
+				if(voxelTerrain.chunkGroups[i].chunks[y].flags.state < CHUNK_REQUIRES_UPLOAD)
 					return false;
 			}
 		}
@@ -546,7 +550,7 @@ static bool GroupNeedsFaces(uint32_t xId, uint32_t zId)
 	TerrainChunkGroup group = voxelTerrain.chunkGroups[xId * TERRAIN_VIEW_RANGE + zId];
 	bool needsFaces = true;
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
-		needsFaces = needsFaces && group.chunks[y].state == CHUNK_REQUIRES_FACES;
+		needsFaces = needsFaces && group.chunks[y].flags.state == CHUNK_REQUIRES_FACES;
 	return needsFaces;
 }
 
@@ -572,16 +576,16 @@ static bool TryUploadGroup(TerrainChunkGroup* group)
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
 	{
 		TerrainChunk* chunk = &group->chunks[y];
-		uint16_t faceCount = (chunk->flags & 0xffff0000) >> 16;
+		uint16_t faceCount = chunk->flags.faceCount;
 		if(faceCount == 0) continue;
 
-		if(chunk->state == CHUNK_REQUIRES_UPLOAD)
+		if(chunk->flags.state == CHUNK_REQUIRES_UPLOAD)
 		{
 			uint32_t id = group->ssboId * TERRAIN_HEIGHT + y;
 			cm_reupload_vbo(&voxelTerrain.chunkVaos[id].vbo, faceCount * sizeof(uint32_t) * 12, chunk->buffer);
 			cm_upload_ssbo(voxelTerrain.voxelsSsbo, id * TERRAIN_CHUNK_VOXEL_COUNT, TERRAIN_CHUNK_VOXEL_COUNT, chunk->voxels);
-			chunk->state = CHUNK_READY_TO_DRAW;
-			chunk->flags |= 1;
+			chunk->flags.state = CHUNK_READY_TO_DRAW;
+			chunk->flags.isUploaded = true;
 			uploaded = true;
 		}
 	}
