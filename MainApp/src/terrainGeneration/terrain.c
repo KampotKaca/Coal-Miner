@@ -137,7 +137,7 @@ void load_terrain()
 	LoadTerrainTextures();
 	InitTerrainNoise();
 	
-	voxelTerrain.shiftGroups = CM_MALLOC(TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE * sizeof(TerrainChunkGroup));
+	voxelTerrain.shiftGroups = CM_MALLOC(TERRAIN_VIEW_RANGE * sizeof(TerrainChunkGroup));
 	
 	for (int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 		for (int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
@@ -182,7 +182,23 @@ void update_terrain()
 
 		terrainIsWireMode = !terrainIsWireMode;
 	}
-	
+
+	if(cm_is_key_pressed(KEY_T))
+	{
+		uint32_t size = 0;
+		for (uint32_t i = 0; i < TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE; ++i)
+		{
+			for (uint32_t y = 0; y < TERRAIN_HEIGHT; ++y)
+			{
+				uint32_t bufferSizeIndex = (voxelTerrain.chunkGroups[i].chunks[y].flags & 0b1111110) >> 1;
+				uint32_t bufferSize = (bufferSizeIndex > 0) * TERRAIN_MIN_BUFFER_SIZE * cm_pow2(bufferSizeIndex);
+				size += bufferSize * sizeof(uint32_t) * 12;
+			}
+		}
+
+		printf("Allocated Buffer Bytes: %u\n", size);
+	}
+
 	ReloadChunks(get_camera());
 	LoadTerrainChunks();
 	
@@ -458,8 +474,10 @@ static void ReloadChunks(Camera3D camera)
 	vec3 position = { 0 };
 	glm_vec3_copy(camera.position, position);
 	ivec2 id;
-	id[0] = (int)(position[0] / TERRAIN_CHUNK_SIZE) + TERRAIN_WORLD_EDGE;
-	id[1] = (int)(position[2] / TERRAIN_CHUNK_SIZE) + TERRAIN_WORLD_EDGE;
+	id[0] = (int32_t)glm_clamp((position[0] / TERRAIN_CHUNK_SIZE) + TERRAIN_WORLD_EDGE,
+							   (float)(voxelTerrain.loadedCenter[0] - 1), (float)(voxelTerrain.loadedCenter[0] + 1));
+	id[1] = (int32_t)glm_clamp((position[2] / TERRAIN_CHUNK_SIZE) + TERRAIN_WORLD_EDGE,
+							   (float)(voxelTerrain.loadedCenter[1] - 1), (float)(voxelTerrain.loadedCenter[1] + 1));
 
 	if(!glm_ivec2_eqv(id, voxelTerrain.loadedCenter))
 	{
