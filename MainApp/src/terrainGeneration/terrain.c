@@ -4,6 +4,7 @@
 #include <FastNoiseLite.h>
 #include "camera.h"
 #include "coal_helper.h"
+#include <stdatomic.h>
 
 //region structures
 #define TERRAIN_CHUNK_VOXEL_COUNT TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE
@@ -115,6 +116,7 @@ static void CreateChunkFaces(uint32_t xId, uint32_t yId, uint32_t zId);
 
 //Utils
 static void PassTerrainDataToShader(UniformData* data);
+static bool AllChunksAreLoaded();
 static bool SurroundGroupsAreLoaded(uint32_t xId, uint32_t zId);
 static bool GroupNeedsFaces(uint32_t xId, uint32_t zId);
 static bool DelayedLoader();
@@ -138,7 +140,7 @@ void load_terrain()
 	InitTerrainNoise();
 	
 	voxelTerrain.shiftGroups = CM_MALLOC(TERRAIN_VIEW_RANGE * sizeof(TerrainChunkGroup));
-	
+
 	for (int x = 0; x < TERRAIN_VIEW_RANGE; ++x)
 		for (int z = 0; z < TERRAIN_VIEW_RANGE; ++z)
 			voxelTerrain.chunkGroups[x * TERRAIN_VIEW_RANGE + z] = InitializeChunkGroup(x * TERRAIN_VIEW_RANGE + z);
@@ -469,7 +471,7 @@ static void SetRequiresFaces(uint32_t x, uint32_t z)
 
 static void ReloadChunks(Camera3D camera)
 {
-	if(voxelTerrain.pool->jobCount > 0) return;
+	if(voxelTerrain.pool->jobCount > 0 || !AllChunksAreLoaded()) return;
 
 	vec3 position = { 0 };
 	glm_vec3_copy(camera.position, position);
@@ -721,7 +723,7 @@ static void SendFaceCreationJob(uint32_t x, uint32_t y, uint32_t z)
 {
 	TerrainChunk* chunk = &voxelTerrain.chunkGroups[x * TERRAIN_VIEW_RANGE + z].chunks[y];
 	chunk->state = CHUNK_CREATING_FACES;
-	
+
 	uint32_t * args = CM_MALLOC(3 * sizeof(uint32_t));
 	args[0] = x;
 	args[1] = y;
@@ -1056,6 +1058,24 @@ static void PassTerrainDataToShader(UniformData* data)
 	memcpy(index, data->chunk, sizeof(ivec3));
 	index[3] = data->chunkId;
 	cm_set_uniform_uvec4(voxelTerrain.u_chunkIndex, index);
+}
+
+static bool AllChunksAreLoaded()
+{
+	for (uint32_t i = 0; i < TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE; ++i)
+	{
+		if(voxelTerrain.chunkGroups[i].state == CHUNK_GROUP_READY)
+		{
+			for (uint32_t y = 0; y < TERRAIN_HEIGHT; ++y)
+			{
+				if(voxelTerrain.chunkGroups[i].chunks[y].state < CHUNK_REQUIRES_UPLOAD)
+					return false;
+			}
+		}
+		else return false;
+	}
+
+	return true;
 }
 
 static bool SurroundGroupsAreLoaded(uint32_t xId, uint32_t zId)
