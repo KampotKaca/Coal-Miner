@@ -1,5 +1,5 @@
-#include "terrain.h"
 #include "terrainConfig.h"
+#include "terrain_blocks.h"
 
 typedef struct BlockData
 {
@@ -29,7 +29,7 @@ BlockData blockData[BLOCK_GEN_COUNT] =
 	}
 };
 
-unsigned char get_block_type(float caveValue)
+unsigned char get_terrain_block_type(float caveValue)
 {
 	float currentValue = 0;
 	for (int i = 0; i < BLOCK_GEN_COUNT; ++i)
@@ -41,7 +41,7 @@ unsigned char get_block_type(float caveValue)
 }
 
 //region noise
-fnl_state get_cave_noise()
+fnl_state get_terrain_cave_noise()
 {
 	fnl_state noise = fnlCreateState();
 	noise.seed = rand() % 10000000;
@@ -55,7 +55,7 @@ fnl_state get_cave_noise()
 	return noise;
 }
 
-fnl_state get_biome_flat_noise()
+fnl_state get_terrain_biome_flat_noise()
 {
 	fnl_state noise = fnlCreateState();
 	noise.seed = rand() % 10000000;
@@ -68,7 +68,7 @@ fnl_state get_biome_flat_noise()
 	return noise;
 }
 
-fnl_state get_biome_small_hill_noise()
+fnl_state get_terrain_biome_small_hill_noise()
 {
 	fnl_state noise = fnlCreateState();
 	noise.seed = rand() % 10000000;
@@ -81,7 +81,7 @@ fnl_state get_biome_small_hill_noise()
 	return noise;
 }
 
-fnl_state get_biome_hill_noise()
+fnl_state get_terrain_biome_hill_noise()
 {
 	fnl_state noise = fnlCreateState();
 	noise.seed = rand() % 10000000;
@@ -94,7 +94,7 @@ fnl_state get_biome_hill_noise()
 	return noise;
 }
 
-fnl_state get_biome_mountain_noise()
+fnl_state get_terrain_biome_mountain_noise()
 {
 	fnl_state noise = fnlCreateState();
 	noise.seed = rand() % 10000000;
@@ -107,7 +107,7 @@ fnl_state get_biome_mountain_noise()
 	return noise;
 }
 
-fnl_state get_biome_high_mountain_noise()
+fnl_state get_terrain_biome_high_mountain_noise()
 {
 	fnl_state noise = fnlCreateState();
 	noise.seed = rand() % 10000000;

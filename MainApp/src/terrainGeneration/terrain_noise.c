@@ -1,5 +1,5 @@
 #include "terrain_noise.h"
-#include <FastNoiseLite.h>
+#include "terrain_blocks.h"
 
 static void T_GenerateTerrainNoise(void* args);
 static void T_OnTerrainNoiseGenerationFinished(void* args);
@@ -99,7 +99,7 @@ void generate_terrain_pre_chunk(uint32_t xId, uint32_t yId, uint32_t zId)
 					caveValue = (caveValue - TERRAIN_CAVE_EDGE) / (1 - TERRAIN_CAVE_EDGE);
 
 					uint32_t id = y * TERRAIN_CHUNK_HORIZONTAL_SLICE + xzId;
-					uint8_t block = get_block_type(caveValue);
+					uint8_t block = get_terrain_block_type(caveValue);
 					cells[id] = block;
 				}
 			}

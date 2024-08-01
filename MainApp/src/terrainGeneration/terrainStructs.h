@@ -1,6 +1,7 @@
 #ifndef TERRAIN_STRUCTS_H
 #define TERRAIN_STRUCTS_H
 
+#include <FastNoiseLite.h>
 #include "coal_miner.h"
 #include "terrain.h"
 #include "terrainConfig.h"

@@ -1,6 +1,7 @@
 #include "terrainStructs.h"
 #include "terrain_noise.h"
 #include "terrain_meshing.h"
+#include "terrain_blocks.h"
 #include "coal_miner_internal.h"
 #include "camera.h"
 #include "coal_helper.h"
@@ -251,12 +252,12 @@ static void LoadBuffers()
 
 static void InitTerrainNoise()
 {
-	voxelTerrain.caveNoise = get_cave_noise();
-	voxelTerrain.biomes[BIOME_FLAT] = get_biome_flat_noise();
-	voxelTerrain.biomes[BIOME_SMALL_HILL] = get_biome_small_hill_noise();
-	voxelTerrain.biomes[BIOME_HILL] = get_biome_hill_noise();
-	voxelTerrain.biomes[BIOME_MOUNTAIN] = get_biome_mountain_noise();
-	voxelTerrain.biomes[BIOME_HIGH_MOUNTAIN] = get_biome_high_mountain_noise();
+	voxelTerrain.caveNoise = get_terrain_cave_noise();
+	voxelTerrain.biomes[BIOME_FLAT] = get_terrain_biome_flat_noise();
+	voxelTerrain.biomes[BIOME_SMALL_HILL] = get_terrain_biome_small_hill_noise();
+	voxelTerrain.biomes[BIOME_HILL] = get_terrain_biome_hill_noise();
+	voxelTerrain.biomes[BIOME_MOUNTAIN] = get_terrain_biome_mountain_noise();
+	voxelTerrain.biomes[BIOME_HIGH_MOUNTAIN] = get_terrain_biome_high_mountain_noise();
 }
 
 static void LoadTerrainChunks()

@@ -2,7 +2,6 @@
 #define TERRAIN_H
 
 #include "coal_miner.h"
-#include "FastNoiseLite.h"
 
 typedef enum
 {
@@ -37,13 +36,5 @@ bool loading_terrain();
 void update_terrain();
 void draw_terrain();
 void dispose_terrain();
-
-unsigned char get_block_type(float caveValue);
-fnl_state get_cave_noise();
-fnl_state get_biome_flat_noise();
-fnl_state get_biome_small_hill_noise();
-fnl_state get_biome_hill_noise();
-fnl_state get_biome_mountain_noise();
-fnl_state get_biome_high_mountain_noise();
 
 #endif //TERRAIN_H
