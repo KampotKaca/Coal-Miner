@@ -1,5 +1,5 @@
-#ifndef TERRAINCONFIG_H
-#define TERRAINCONFIG_H
+#ifndef TERRAIN_CONFIG_H
+#define TERRAIN_CONFIG_H
 
 //This should not be modified
 #define TERRAIN_CHUNK_SIZE 64
@@ -13,6 +13,8 @@
 #define TERRAIN_HEIGHT 4
 #define TERRAIN_LOWER_EDGE 1
 #define TERRAIN_UPPER_EDGE 3
+
+#define TERRAIN_MAX_GREEDY_AXIS 16
 
 //region Caves
 #define TERRAIN_CAVE_NOISE FNL_NOISE_PERLIN
@@ -78,4 +80,4 @@
 #define TERRAIN_WORLD_EDGE 100000
 #define TERRAIN_DELAYED_LOAD
 
-#endif //TERRAINCONFIG_H
+#endif //TERRAIN_CONFIG_H

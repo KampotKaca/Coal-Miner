@@ -7,9 +7,6 @@ typedef struct BlockData
 	unsigned char spawnedBlock;
 }BlockData;
 
-static void GenerateDirt(float caveValue, unsigned char yIndex, unsigned char maxHeight);
-static void GenerateStone(float caveValue, unsigned char yIndex, unsigned char maxHeight);
-
 BlockData blockData[BLOCK_GEN_COUNT] =
 {
 	(BlockData)

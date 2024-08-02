@@ -18,17 +18,15 @@ layout(std140, binding = 32) uniform Camera
     vec3 cameraDirection;
 };
 
-//V1
 //6bit BlockPositionZ
 //6bit BlockPositionY
 //6bit BlockPositionX
+//4bit SizeX
+//4bit SizeY
 //3bit FaceId
 //2bit Id
 
-//V2
-//6bit SizeX
-//6bit SizeY
-layout(location = 0) in uvec2 vertex;
+layout(location = 0) in uint vertex;
 
 //xyz index, w id
 uniform uvec4 u_chunkIndex;
@@ -43,16 +41,17 @@ void main()
     ivec2 lPos = ivec2((vert & 2u) >> 1, vert & 1u);
     vert >>= 2;
 
-    ivec3 vertexPos;
+    ivec2 size = ivec2((vert & 240u) >> 4, (vert & 15u));
+    size.x++;
+    size.y++;
+    vert >>= 8;
 
     out_faceId = vert & 7u;
     vert >>= 3;
     ivec3 blockPos = ivec3((vert & 258048u) >> 12, (vert & 4032u) >> 6, vert & 63u);
     vert >>= 18;
 
-    uint vert2 = vertex.y;
-    ivec2 size = ivec2((vert2 & 4032u) >> 6, (vert2 & 63u));
-    vert2 >>= 12;
+    ivec3 vertexPos;
 
     switch(out_faceId)
     {

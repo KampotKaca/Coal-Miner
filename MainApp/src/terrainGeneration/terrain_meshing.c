@@ -82,27 +82,6 @@ static void T_TerrainGroupFacesCreationFinished(void* args)
 
 //region faces
 
-static inline void AddFace(uint32_t* buffer, uint32_t faceCount,
-                           uint32_t x, uint32_t y, uint32_t z, uint32_t face, uint32_t size)
-{
-	uint32_t offset = faceCount * 12;
-	uint32_t block = (x << 15) | (y << 9) | (z << 3) | face;
-
-	block <<= 2;
-	buffer[offset + 0]  = block | 0b00;
-	buffer[offset + 1]  = size;
-	buffer[offset + 2]  = block | 0b01;
-	buffer[offset + 3]  = size;
-	buffer[offset + 4]  = block | 0b11;
-	buffer[offset + 5]  = size;
-	buffer[offset + 6]  = block | 0b00;
-	buffer[offset + 7]  = size;
-	buffer[offset + 8]  = block | 0b11;
-	buffer[offset + 9]  = size;
-	buffer[offset + 10] = block | 0b10;
-	buffer[offset + 11] = size;
-}
-
 static inline uint32_t ToVoxelId(uint32_t x, uint32_t y, uint32_t z)
 {
 	return y * TERRAIN_CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z;
@@ -117,12 +96,13 @@ static inline void CreateFaceMask(const uint64_t* oMask, bool fVoxelExists, bool
 }
 
 static inline uint32_t GreedyMeshing(uint32_t x, uint32_t y, uint32_t offset,
-                                     uint64_t* currentFace)
+                                     uint64_t* currentFace, uint32_t block)
 {
-	uint32_t sizeX = 1, sizeY = 1;
+	uint32_t sizeX = 1u, sizeY = 1u;
 	uint64_t bitShift = 1llu << offset;
 
-	for (uint32_t sa = x + 1; sa < TERRAIN_CHUNK_SIZE; ++sa)
+	uint32_t saEnd = glm_imin(x + TERRAIN_MAX_GREEDY_AXIS, TERRAIN_CHUNK_SIZE);
+	for (uint32_t sa = x + 1u; sa < saEnd; ++sa)
 	{
 		uint32_t id = y * TERRAIN_CHUNK_SIZE + sa;
 		uint64_t bitMap = currentFace[id];
@@ -135,12 +115,13 @@ static inline uint32_t GreedyMeshing(uint32_t x, uint32_t y, uint32_t offset,
 		else break;
 	}
 
-	uint32_t saEnd = x + sizeX;
-	for (uint32_t la = y + 1; la < TERRAIN_CHUNK_SIZE; ++la)
+	uint32_t laEnd = glm_imin(y + TERRAIN_MAX_GREEDY_AXIS, TERRAIN_CHUNK_SIZE);
+	saEnd = x + sizeX;
+	for (uint32_t la = y + 1u; la < laEnd; ++la)
 	{
 		for (uint32_t sa = x; sa < saEnd; ++sa)
 		{
-			if((currentFace[la * TERRAIN_CHUNK_SIZE + sa] & bitShift) == 0)
+			if((currentFace[la * TERRAIN_CHUNK_SIZE + sa] & bitShift) == 0u)
 				goto end;
 		}
 
@@ -151,19 +132,34 @@ static inline uint32_t GreedyMeshing(uint32_t x, uint32_t y, uint32_t offset,
 	}
 
 	end:
-	return (sizeX << 6) | sizeY;
+	block <<= 8u;
+	block |= ((sizeX - 1u) << 4u) | (sizeY - 1u);
+	return block;
+};
+
+static inline void AddFace(uint32_t* buffer, uint32_t faceCount, uint32_t block)
+{
+	uint32_t offset = faceCount * 6;
+	block <<= 2;
+
+	buffer[offset + 0] = block | 0b00;
+	buffer[offset + 1] = block | 0b01;
+	buffer[offset + 2] = block | 0b11;
+	buffer[offset + 3] = block | 0b00;
+	buffer[offset + 4] = block | 0b11;
+	buffer[offset + 5] = block | 0b10;
 }
 
 void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 {
 	//region defines
 #define BUFFER_CHECK \
-	if(bufferSize < faceCount + 12)\
+	if(bufferSize < faceCount + 6)\
 	{\
 		uint32_t oldBufferSize = bufferSize;\
 		bufferSizeIndex++;\
 		bufferSize = TERRAIN_MIN_BUFFER_SIZE * cm_pow2(bufferSizeIndex);\
-		void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(uint32_t) * 12);\
+		void* newMemory = CM_REALLOC(chunk->buffer, bufferSize * sizeof(uint32_t) * 6);\
 		if(newMemory == NULL)\
 		{\
 			perror("Unable to reallocate memory!!! exiting the program.\n");\
@@ -171,7 +167,7 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 		}\
 		else\
 		{\
-			memset((uint32_t*)newMemory + oldBufferSize * 12, 0, (bufferSize - oldBufferSize) * sizeof(uint32_t) * 12);\
+			memset((uint32_t*)newMemory + oldBufferSize * 6, 0, (bufferSize - oldBufferSize) * sizeof(uint32_t) * 6);\
 			chunk->buffer = newMemory;\
 			buffer = newMemory;\
 			chunk->flags.bufferSizeIndex = bufferSizeIndex;\
@@ -187,8 +183,8 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 	//region MaskCreation
 	uint8_t* voxels = chunk->voxels;
 	uint64_t fbMask[TERRAIN_CHUNK_HORIZONTAL_SLICE],
-		rlMask[TERRAIN_CHUNK_HORIZONTAL_SLICE],
-		tbMask[TERRAIN_CHUNK_HORIZONTAL_SLICE];
+		     rlMask[TERRAIN_CHUNK_HORIZONTAL_SLICE],
+		     tbMask[TERRAIN_CHUNK_HORIZONTAL_SLICE];
 	memset(fbMask, 0, TERRAIN_CHUNK_HORIZONTAL_SLICE * sizeof(uint64_t));
 	memset(rlMask, 0, TERRAIN_CHUNK_HORIZONTAL_SLICE * sizeof(uint64_t));
 	memset(tbMask, 0, TERRAIN_CHUNK_HORIZONTAL_SLICE * sizeof(uint64_t));
@@ -256,7 +252,9 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					AddFace(buffer, faceCount, x, y, z, i, GreedyMeshing(x, y, z, currentFace));
+					uint32_t block = (x << 15u) | (y << 9u) | (z << 3u) | i;
+					block = GreedyMeshing(x, y, z, currentFace, block);
+					AddFace(buffer, faceCount, block);
 					faceCount++;
 				}
 			}
@@ -292,7 +290,9 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					AddFace(buffer, faceCount, x, y, z, i, GreedyMeshing(y, z, x, currentFace));
+					uint32_t block = (x << 15) | (y << 9) | (z << 3) | i;
+					block = GreedyMeshing(y, z, x, currentFace, block);
+					AddFace(buffer, faceCount, block);
 					faceCount++;
 				}
 			}
@@ -328,7 +328,9 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 					BUFFER_CHECK
 
-					AddFace(buffer, faceCount, x, y, z, i, GreedyMeshing(z, x, y, currentFace));
+					uint32_t block = (x << 15) | (y << 9) | (z << 3) | i;
+					block = GreedyMeshing(z, x, y, currentFace, block);
+					AddFace(buffer, faceCount, block);
 					faceCount++;
 				}
 			}
@@ -338,7 +340,7 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 
 #undef RECT_FACE
 	chunk->flags.faceCount = faceCount;
-	m_terrain->chunkVaos[group->ssboId * TERRAIN_HEIGHT + yId].vbo.vertexCount = faceCount * 12;
+	m_terrain->chunkVaos[group->ssboId * TERRAIN_HEIGHT + yId].vbo.vertexCount = faceCount * 6;
 
 #undef BUFFER_CHECK
 }
