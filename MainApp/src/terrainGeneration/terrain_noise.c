@@ -50,7 +50,7 @@ void T_OnTerrainNoiseGenerationFinished(void* args)
 void generate_terrain_height_map(const uint32_t sourceId[2], const uint32_t destination[2])
 {
 	uint8_t * heightMap = n_terrain->chunkGroups[destination[0] * TERRAIN_VIEW_RANGE + destination[1]].heightMap;
-	fnl_state noise = n_terrain->biomes[BIOME_FLAT];
+	fnl_state noise = n_terrain->biomes[BIOME_MOUNTAIN];
 
 	for (uint32_t x = 0; x < TERRAIN_CHUNK_SIZE; ++x)
 	{

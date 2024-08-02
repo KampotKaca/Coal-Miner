@@ -30,7 +30,6 @@ static bool SurroundGroupsAreLoaded(uint32_t xId, uint32_t zId);
 static bool GroupNeedsFaces(uint32_t xId, uint32_t zId);
 static bool DelayedLoader();
 static bool TryUploadGroup(TerrainChunkGroup* group);
-static bool ChunkIsInFrustum();
 
 //endregion
 
