@@ -1,4 +1,5 @@
 #version 430 core
+precision highp float;
 
 const uint CHUNK_SIZE = 64;
 const uint CHUNK_CUBE_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;

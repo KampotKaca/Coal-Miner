@@ -1,4 +1,5 @@
 #version 430 core
+precision highp float;
 
 const uint TERRAIN_CHUNK_SIZE = 64;
 const uint TERRAIN_CHUNK_VOXEL_COUNT = TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE;
