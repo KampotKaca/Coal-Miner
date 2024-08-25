@@ -4,6 +4,7 @@
 //This should not be modified
 #define TERRAIN_CHUNK_SIZE 64
 #define TERRAIN_VOXELS_SSBO_BINDING 48
+#define TERRAIN_MEM_PRINT_SIZE 12
 
 //Can be modified
 #define TERRAIN_NUM_WORKER_THREADS 12
@@ -14,7 +15,7 @@
 #define TERRAIN_LOWER_EDGE 1
 #define TERRAIN_UPPER_EDGE 3
 
-#define TERRAIN_MAX_GREEDY_AXIS 16
+#define TERRAIN_MAX_GREEDY_AXIS 64
 
 //region Caves
 #define TERRAIN_CAVE_NOISE FNL_NOISE_PERLIN

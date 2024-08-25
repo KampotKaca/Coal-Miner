@@ -101,11 +101,7 @@ void update_terrain()
 		for (uint32_t i = 0; i < TERRAIN_VIEW_RANGE * TERRAIN_VIEW_RANGE; ++i)
 		{
 			for (uint32_t y = 0; y < TERRAIN_HEIGHT; ++y)
-			{
-				uint32_t bufferSizeIndex = voxelTerrain.chunkGroups[i].chunks[y].flags.bufferSizeIndex;
-				uint32_t bufferSize = (bufferSizeIndex > 0) * TERRAIN_MIN_BUFFER_SIZE * cm_pow2(bufferSizeIndex);
-				size += bufferSize * sizeof(uint32_t) * 6;
-			}
+				size += voxelTerrain.chunkGroups[i].chunks[y].buffer.size;
 		}
 
 		printf("Allocated Buffer Bytes: %u\n", size);
@@ -232,7 +228,7 @@ static void LoadBuffers()
 	{
 		VaoAttribute attributes[] =
 		{
-			{ .size = 1, .type = CM_UINT, .normalized = false, .stride = 1 * sizeof(uint32_t) },
+			{ .size = 2, .type = CM_UINT, .normalized = false, .stride = 2 * sizeof(uint32_t) },
 		};
 		
 		Vbo vbo = { 0 };
@@ -294,7 +290,7 @@ static TerrainChunkGroup InitializeChunkGroup(uint32_t ssboId)
 		TerrainChunk chunk =
 			{
 				.flags = 0,
-				.buffer = NULL,
+				.buffer = list_create(0),
 				.voxels = CM_MALLOC(TERRAIN_CHUNK_VOXEL_COUNT),
 			};
 
@@ -319,14 +315,9 @@ static void UnloadChunkGroup(TerrainChunkGroup* group)
 	{
 		TerrainChunk* chunk = &group->chunks[y];
 		chunk->flags.state = CHUNK_REQUIRES_FACES;
-		if(chunk->buffer)
-		{
-			CM_FREE(chunk->buffer);
-			chunk->buffer = NULL;
-		}
+		list_clear(&chunk->buffer);
 
 		chunk->flags.isUploaded = 0;
-		chunk->flags.bufferSizeIndex = 0;
 		chunk->flags.faceCount = 0;
 
 		memset(chunk->voxels, 0, TERRAIN_CHUNK_VOXEL_COUNT);
@@ -342,7 +333,7 @@ static void DestroyChunkGroup(TerrainChunkGroup* group)
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
 	{
 		CM_FREE(group->chunks[y].voxels);
-		if(group->chunks[y].buffer) CM_FREE(group->chunks[y].buffer);
+		list_clear(&group->chunks[y].buffer);
 	}
 }
 
@@ -581,7 +572,7 @@ static bool TryUploadGroup(TerrainChunkGroup* group)
 		if(chunk->flags.state == CHUNK_REQUIRES_UPLOAD)
 		{
 			uint32_t id = group->ssboId * TERRAIN_HEIGHT + y;
-			cm_reupload_vbo(&voxelTerrain.chunkVaos[id].vbo, faceCount * sizeof(uint32_t) * 6, chunk->buffer);
+			cm_reupload_vbo(&voxelTerrain.chunkVaos[id].vbo, chunk->buffer.position, chunk->buffer.data);
 			cm_upload_ssbo(voxelTerrain.voxelsSsbo, id * TERRAIN_CHUNK_VOXEL_COUNT, TERRAIN_CHUNK_VOXEL_COUNT, chunk->voxels);
 			chunk->flags.state = CHUNK_READY_TO_DRAW;
 			chunk->flags.isUploaded = true;

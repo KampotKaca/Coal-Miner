@@ -35,7 +35,6 @@ typedef struct
 struct TerrainChunkFlags
 {
 	uint32_t isUploaded:1;
-	uint32_t bufferSizeIndex:6;
 	uint32_t yId:4;
 	uint32_t state:5;
 	uint32_t faceCount:16;
@@ -45,7 +44,7 @@ typedef struct TerrainChunkFlags TerrainChunkFlags;
 typedef struct
 {
 	TerrainChunkFlags flags;
-	uint32_t* buffer;
+	List buffer;
 	uint8_t* voxels;
 }TerrainChunk;
 

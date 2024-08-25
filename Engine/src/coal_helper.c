@@ -57,3 +57,9 @@ uint32_t cm_pow2(uint32_t n)
 	for (uint32_t i = 0; i < n; ++i) num *= 2;
 	return num;
 }
+
+uint32_t cm_max(uint32_t u1, uint32_t u2)
+{
+	if(u1 > u2) return u1;
+	return u2;
+}
