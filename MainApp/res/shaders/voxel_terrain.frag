@@ -28,6 +28,7 @@ layout(std430, binding = 48) buffer VoxelBuffer
 in flat uint out_faceId;
 in vec3 out_lPos;
 in vec2 out_facePos;
+//in vec3 out_ao_footprint;
 
 out vec4 finalColor;
 

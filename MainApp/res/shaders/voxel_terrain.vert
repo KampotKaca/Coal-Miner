@@ -10,6 +10,14 @@ const uint MAX_AXIS_SURFACE_TYPE = 16;
 const float AXIS_SURFACE_OFFSET = 1.0f / (MAX_AXIS_SURFACE_TYPE);
 const uint MAX_SUFACE_TYPE = MAX_AXIS_SURFACE_TYPE * MAX_AXIS_SURFACE_TYPE;
 
+const vec3 AO_FOOTPRINT[4] =
+{
+    { 1.0f, 1.0f, 1.0f },
+    { 0.75f, 0.75f, 0.75f },
+    { 0.5f, 0.5f, 0.5f },
+    { 0.25f, 0.25f, 0.25f },
+};
+
 layout(std140, binding = 32) uniform Camera
 {
     mat4 cameraView;
@@ -19,12 +27,9 @@ layout(std140, binding = 32) uniform Camera
     vec3 cameraDirection;
 };
 
-//6bit BlockPositionZ
-//6bit BlockPositionY
-//6bit BlockPositionX
-//4bit SizeX
-//4bit SizeY
+//18bit BlockPosition
 //3bit FaceId
+//8bit Size
 //2bit Id
 
 layout(location = 0) in uint vertex;
@@ -35,6 +40,7 @@ uniform uvec4 u_chunkIndex;
 out flat uint out_faceId;
 out vec3 out_lPos;
 out vec2 out_facePos;
+//out vec3 out_ao_footprint;
 
 void main()
 {
