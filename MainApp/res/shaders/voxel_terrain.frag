@@ -28,7 +28,7 @@ layout(std430, binding = 48) buffer VoxelBuffer
 in flat uint out_faceId;
 in vec3 out_lPos;
 in vec2 out_facePos;
-//in vec3 out_ao_footprint;
+in vec3 out_ao_footprint;
 
 out vec4 finalColor;
 
@@ -49,5 +49,6 @@ void main()
 
     uv.y = 1 - uv.y;
     finalColor = texture(u_surfaceTex[out_faceId], uv);
+    finalColor.rgb *= out_ao_footprint;
     finalColor.rgb *= faceColors[out_faceId];
 }

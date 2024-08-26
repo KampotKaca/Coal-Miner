@@ -82,6 +82,12 @@ static void T_TerrainGroupFacesCreationFinished(void* args)
 
 //region faces
 
+struct GreedySize
+{
+	uint32_t x;
+	uint32_t y;
+};
+
 static inline uint32_t ToVoxelId(uint32_t x, uint32_t y, uint32_t z)
 {
 	return y * TERRAIN_CHUNK_HORIZONTAL_SLICE + x * TERRAIN_CHUNK_SIZE + z;
@@ -95,8 +101,9 @@ static inline void CreateFaceMask(const uint64_t* oMask, bool fVoxelExists, bool
 	tb[id] = (mask & ~(mask << 1ull)) & ~(bVoxelExists);
 }
 
-static inline uint32_t GreedyMeshing(uint32_t x, uint32_t y, uint32_t offset,
-                                     uint64_t* currentFace, uint32_t block)
+static inline struct GreedySize GreedyMeshing
+	(uint32_t x, uint32_t y, uint32_t offset,
+	 uint64_t* currentFace)
 {
 	uint32_t sizeX = 1u, sizeY = 1u;
 	uint64_t bitShift = 1llu << offset;
@@ -132,13 +139,20 @@ static inline uint32_t GreedyMeshing(uint32_t x, uint32_t y, uint32_t offset,
 	}
 
 	end:
-	block <<= 12u;
-	block |= ((sizeX - 1u) << 6u) | (sizeY - 1u);
-	return block;
+	return (struct GreedySize){ .x = sizeX, .y = sizeY };
 };
 
-static inline void AddFace(List* list, uint32_t mainBlock, uint32_t faceBlock)
+static inline void AddFace(List* list,
+						   uint32_t x, uint32_t y, uint32_t z,
+						   struct GreedySize size,
+						   uint32_t faceId)
 {
+	uint32_t mainBlock = (x << 12u) | (y << 6u) | z;
+	mainBlock <<= 12;
+	mainBlock |= ((size.x - 1) << 6u) | (size.y - 1);
+	mainBlock <<= 2;
+
+	uint32_t faceBlock = faceId;
 	faceBlock <<= 2;
 
 	uint32_t buffer[TERRAIN_MEM_PRINT_SIZE] =
@@ -233,11 +247,8 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 					uint32_t z = cm_trailing_zeros(mask);
 					mask &= mask - 1u;
 
-					uint32_t mainBlock = (x << 12u) | (y << 6u) | z;
-					uint32_t faceBlock = i;
-					mainBlock = GreedyMeshing(x, y, z, currentFace, mainBlock);
-					mainBlock <<= 2;
-					AddFace(&chunk->buffer, mainBlock, faceBlock);
+					struct GreedySize size = GreedyMeshing(x, y, z, currentFace);
+					AddFace(&chunk->buffer, x, y, z, size, i);
 					faceCount++;
 				}
 			}
@@ -271,11 +282,8 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 					uint32_t x = cm_trailing_zeros(mask);
 					mask &= mask - 1;
 
-					uint32_t mainBlock = (x << 12u) | (y << 6u) | z;
-					uint32_t faceBlock = i;
-					mainBlock = GreedyMeshing(y, z, x, currentFace, mainBlock);
-					mainBlock <<= 2;
-					AddFace(&chunk->buffer, mainBlock, faceBlock);
+					struct GreedySize size = GreedyMeshing(y, z, x, currentFace);
+					AddFace(&chunk->buffer, x, y, z, size, i);
 					faceCount++;
 				}
 			}
@@ -309,11 +317,8 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 					uint32_t y = cm_trailing_zeros(mask);
 					mask &= mask - 1;
 
-					uint32_t mainBlock = (x << 12u) | (y << 6u) | z;
-					uint32_t faceBlock = i;
-					mainBlock = GreedyMeshing(z, x, y, currentFace, mainBlock);
-					mainBlock <<= 2;
-					AddFace(&chunk->buffer, mainBlock, faceBlock);
+					struct GreedySize size = GreedyMeshing(z, x, y, currentFace);
+					AddFace(&chunk->buffer, x, y, z, size, i);
 					faceCount++;
 				}
 			}

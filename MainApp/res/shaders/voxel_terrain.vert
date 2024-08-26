@@ -44,7 +44,7 @@ uniform uvec4 u_chunkIndex;
 out flat uint out_faceId;
 out vec3 out_lPos;
 out vec2 out_facePos;
-//out vec3 out_ao_footprint;
+out vec3 out_ao_footprint;
 
 void main()
 {
@@ -53,6 +53,7 @@ void main()
 
     uint aoPrint = vertX & 3u;
     vertX >>= 2;
+    out_ao_footprint = AO_FOOTPRINT[aoPrint];
 
     ivec2 size = ivec2((vertX & 4032u) >> 6, (vertX & 63u));
     size.x++;
