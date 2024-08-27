@@ -8,6 +8,8 @@
 
 void game_awake()
 {
+	log_set_level(LOG_INFO);
+
 #if defined(DRAW_GRID)
 	load_grid();
 #endif

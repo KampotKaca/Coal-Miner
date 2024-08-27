@@ -18,7 +18,7 @@ int FillWithAppIcons(const char* filePath, Image* storeLocation)
 
 	if (dir == NULL)
 	{
-		printf("%s", filePath);
+		log_error("%s", filePath);
 		perror("Unable to open directory");
 		return 0;
 	}
@@ -57,7 +57,7 @@ void create_window(unsigned int width, unsigned int height,
 
 	if(!init_platform(&WINDOW, &INPUT))
 	{
-		printf("Unable to load glfw window!!!");
+		log_error("Unable to load glfw window!!!");
 		return;
 	}
 

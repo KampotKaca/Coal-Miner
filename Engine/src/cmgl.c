@@ -74,8 +74,8 @@ unsigned int load_texture(const void *data, int width, int height,
 		
 		unsigned int glInternalFormat, glFormat, glType;
 		get_gl_texture_formats(format, &glInternalFormat, &glFormat, &glType);
-		
-		printf("TEXTURE: Load mipmap level %i (%i x %i), size: %i, offset: %i", i, mipWidth, mipHeight, mipSize, mipOffset);
+
+		log_trace("TEXTURE: Load mipmap level %i (%i x %i), size: %i, offset: %i", i, mipWidth, mipHeight, mipSize, mipOffset);
 		
 		if (glInternalFormat != 0)
 		{
@@ -131,8 +131,8 @@ unsigned int load_texture(const void *data, int width, int height,
 	// Unbind current texture
 	glBindTexture(GL_TEXTURE_2D, 0);
 	
-	if (id > 0) printf("TEXTURE: [ID %i] Texture loaded successfully (%ix%i | %s | %i mipmaps)", id, width, height, get_pixel_format_name(format), mipmapCount);
-	else printf("TEXTURE: Failed to load texture");
+	if (id > 0) log_trace("TEXTURE: [ID %i] Texture loaded successfully (%ix%i | %s | %i mipmaps)", id, width, height, get_pixel_format_name(format), mipmapCount);
+	else log_warn("TEXTURE: Failed to load texture");
 	
 	return id;
 }
@@ -166,7 +166,7 @@ void get_gl_texture_formats(int format, unsigned int *glInternalFormat, unsigned
 		case RL_PIXELFORMAT_COMPRESSED_ETC2_RGB: *glInternalFormat = GL_COMPRESSED_RGB8_ETC2; break;               // NOTE: Requires OpenGL ES 3.0 or OpenGL 4.3
 		case RL_PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA: *glInternalFormat = GL_COMPRESSED_RGBA8_ETC2_EAC; break;     // NOTE: Requires OpenGL ES 3.0 or OpenGL 4.3
 		
-		default: printf("TEXTURE: Current format not supported (%i)", format); break;
+		default: log_warn("TEXTURE: Current format not supported (%i)", format); break;
 	}
 }
 
@@ -330,10 +330,10 @@ unsigned int compile_shader(const char *shaderCode, int type)
     {
         switch (type)
         {
-            case GL_VERTEX_SHADER: printf("SHADER: [ID %i] Failed to compile vertex shader code", shader); break;
-            case GL_FRAGMENT_SHADER: printf("SHADER: [ID %i] Failed to compile fragment shader code", shader); break;
+            case GL_VERTEX_SHADER: log_error("SHADER: [ID %i] Failed to compile vertex shader code", shader); break;
+            case GL_FRAGMENT_SHADER: log_error("SHADER: [ID %i] Failed to compile fragment shader code", shader); break;
             //case GL_GEOMETRY_SHADER:
-            case GL_COMPUTE_SHADER: printf("SHADER: [ID %i] Failed to compile compute shader code", shader); break;
+            case GL_COMPUTE_SHADER: log_error("SHADER: [ID %i] Failed to compile compute shader code", shader); break;
             default: break;
         }
 
@@ -345,7 +345,7 @@ unsigned int compile_shader(const char *shaderCode, int type)
             int length = 0;
             char *log = (char *)CM_CALLOC(maxLength, sizeof(char));
             glGetShaderInfoLog(shader, maxLength, &length, log);
-            printf("SHADER: [ID %i] Compile error: %s", shader, log);
+            log_error("SHADER: [ID %i] Compile error: %s", shader, log);
             CM_FREE(log);
         }
     }
@@ -370,7 +370,7 @@ unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId)
 
     if (success == GL_FALSE)
     {
-        printf("SHADER: [ID %i] Failed to link shader program", program);
+        log_error("SHADER: [ID %i] Failed to link shader program", program);
 
         int maxLength = 0;
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
@@ -380,7 +380,7 @@ unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId)
             int length = 0;
             char *log = (char *)CM_CALLOC(maxLength, sizeof(char));
             glGetProgramInfoLog(program, maxLength, &length, log);
-	        printf("SHADER: [ID %i] Link error: %s", program, log);
+	        log_error("SHADER: [ID %i] Link error: %s", program, log);
             CM_FREE(log);
         }
 

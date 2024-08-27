@@ -104,7 +104,7 @@ void update_terrain()
 				size += voxelTerrain.chunkGroups[i].chunks[y].buffer.size;
 		}
 
-		printf("Allocated Buffer Bytes: %u\n", size);
+		log_info("Allocated Buffer Bytes: %u\n", size);
 	}
 
 	ReloadChunks(get_camera());

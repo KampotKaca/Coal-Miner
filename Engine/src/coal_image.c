@@ -64,7 +64,7 @@ Texture cm_load_texture_from_image(Image image, TextureFlags wrap, TextureFlags 
 	{
 		texture.id = load_texture(image.data, image.width, image.height, wrap, filter, image.format, image.mipmaps);
 	}
-	else printf("IMAGE: Data is not valid to load texture");
+	else log_error("IMAGE: Data is not valid to load texture");
 	
 	texture.width = image.width;
 	texture.height = image.height;
@@ -104,7 +104,7 @@ unsigned char* cm_load_file_data(const char* filePath, int* dataSize)
                     // dataSize is unified along raylib as a 'int' type, so, for file-sizes > INT_MAX (2147483647 bytes) we have a limitation
                     if (count > 2147483647)
                     {
-                        printf("FILEIO: [%s] File is bigger than 2147483647 bytes, avoid using LoadFileData()", filePath);
+                        log_error("FILEIO: [%s] File is bigger than 2147483647 bytes, avoid using LoadFileData()", filePath);
                         
                         CM_FREE(data);
                         data = NULL;
@@ -113,18 +113,18 @@ unsigned char* cm_load_file_data(const char* filePath, int* dataSize)
                     {
                         *dataSize = (int)count;
 
-                        if ((*dataSize) != size) printf("FILEIO: [%s] File partially loaded (%i bytes out of %i)", filePath, *dataSize, (int)count);
+                        if ((*dataSize) != size) log_warn("FILEIO: [%s] File partially loaded (%i bytes out of %i)", filePath, *dataSize, (int)count);
                     }
                 }
-                else printf("FILEIO: [%s] Failed to allocated memory for file reading", filePath);
+                else log_error("FILEIO: [%s] Failed to allocated memory for file reading", filePath);
             }
-            else printf("FILEIO: [%s] Failed to read file", filePath);
+            else log_error("FILEIO: [%s] Failed to read file", filePath);
 
             fclose(file);
         }
-        else printf("FILEIO: [%s] Failed to open file", filePath);
+        else log_error("FILEIO: [%s] Failed to open file", filePath);
 	}
-	else printf("FILEIO: File name provided is not valid");
+	else log_error("FILEIO: File name provided is not valid");
 	
 	return data;
 }
@@ -270,9 +270,9 @@ Image cm_load_image_from_memory(const char *fileType, const unsigned char *fileD
         image.data = rl_load_astc_from_memory(fileData, dataSize, &image.width, &image.height, &image.format, &image.mipmaps);
     }
 #endif
-	else printf("IMAGE: Data format not supported");
+	else log_error("IMAGE: Data format not supported");
 	
-	if (image.data == NULL) printf("IMAGE: Failed to load image data");
+	if (image.data == NULL) log_error("IMAGE: Failed to load image data");
 	
 	return image;
 }

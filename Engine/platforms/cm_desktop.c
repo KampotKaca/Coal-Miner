@@ -25,7 +25,7 @@ void setup_viewport(int width, int height)
 
 static void glfw_error_callback(int error, const char *description)
 {
-	printf("GLFW_Error: %i Description: %s", error, description);
+	log_error("GLFW: %i Description: %s", error, description);
 }
 
 static void WindowSizeCallback(GLFWwindow *window, int width, int height)
@@ -179,7 +179,7 @@ void setup_framebuffer(Window* window)
 	// Calculate WINDOW->render.width and WINDOW->render.height, we have the display size (input params) and the desired screen size (global var)
 	if ((window->screen.width > window->display.width) || (window->screen.height > window->display.height))
 	{
-		printf("DISPLAY: Downscaling required: Screen size (%ix%i) is bigger than display size (%ix%i)", window->screen.width, window->screen.height, window->display.width, window->display.height);
+		log_trace("DISPLAY: Downscaling required: Screen size (%ix%i) is bigger than display size (%ix%i)", window->screen.width, window->screen.height, window->display.width, window->display.height);
 
 		// Downscaling to fit display with border-bars
 		float widthRatio = (float)window->display.width / (float)window->screen.width;
@@ -209,12 +209,12 @@ void setup_framebuffer(Window* window)
 		window->render.width = window->display.width;
 		window->render.height = window->display.height;
 
-		printf("DISPLAY: Downscale matrix generated, content will be rendered at (%ix%i)", window->render.width, window->render.height);
+		log_trace("DISPLAY: Downscale matrix generated, content will be rendered at (%ix%i)", window->render.width, window->render.height);
 	}
 	else if ((window->screen.width < window->display.width) || (window->screen.height < window->display.height))
 	{
 		// Required screen size is smaller than display size
-		printf("DISPLAY: Upscaling required: Screen size (%ix%i) smaller than display size (%ix%i)", window->screen.width, window->screen.height, window->display.width, window->display.height);
+		log_trace("DISPLAY: Upscaling required: Screen size (%ix%i) smaller than display size (%ix%i)", window->screen.width, window->screen.height, window->display.width, window->display.height);
 
 		if ((window->screen.width == 0) || (window->screen.height == 0))
 		{
@@ -263,13 +263,13 @@ bool init_platform(Window* window, Input* input)
 	glfwInitHint(GLFW_COCOA_CHDIR_RESOURCES, GLFW_FALSE);
 #endif
 
-	if (result == GLFW_FALSE) { printf("Failed to initialize GLFW"); return false; }
+	if (result == GLFW_FALSE) { log_error("Failed to initialize GLFW"); return false; }
 	glfwDefaultWindowHints();
 
 	//region flags
 	if ((WINDOW_ptr->flags & FLAG_FULLSCREEN_MODE) > 0)
 	{
-		printf("Window Is Fullscreen");
+		log_trace("Window Is Fullscreen");
 		WINDOW_ptr->fullscreen = true;
 	}
 
@@ -329,7 +329,7 @@ bool init_platform(Window* window, Input* input)
 	GLFWmonitor *monitor = glfwGetPrimaryMonitor();
 	if (!monitor)
 	{
-		printf("GLFW: Failed to get primary monitor");
+		log_error("GLFW: Failed to get primary monitor");
 		return false;
 	}
 
@@ -408,7 +408,7 @@ bool init_platform(Window* window, Input* input)
 	if (!window->platformHandle)
 	{
 		glfwTerminate();
-		printf("GLFW: Failed to initialize Window");
+		log_error("GLFW: Failed to initialize Window");
 		return false;
 	}
 
@@ -466,7 +466,7 @@ bool init_platform(Window* window, Input* input)
 
 	if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
-		printf("Unable to load glad!!!");
+		log_error("Unable to load glad!!!");
 		return false;
 	}
 
@@ -530,7 +530,7 @@ void toggle_fullscreen(void)
 
 		if (monitor == NULL)
 		{
-			printf("GLFW: Failed to get monitor");
+			log_error("GLFW: Failed to get monitor");
 
 			WINDOW_ptr->fullscreen = false;
 			WINDOW_ptr->flags &= ~FLAG_FULLSCREEN_MODE;
@@ -629,9 +629,9 @@ void toggle_borderless_windowed(void)
 				WINDOW_ptr->flags &= ~FLAG_BORDERLESS_WINDOWED_MODE;
 			}
 		}
-		else printf("GLFW: Failed to find video mode for selected monitor");
+		else log_error("GLFW: Failed to find video mode for selected monitor");
 	}
-	else printf("GLFW: Failed to find selected monitor");
+	else log_error("GLFW: Failed to find selected monitor");
 }
 
 // Set window state: maximized, if resizable
@@ -749,13 +749,13 @@ void set_window_state(uint32_t flags)
 	// State change: FLAG_WINDOW_TRANSPARENT
 	if (((WINDOW_ptr->flags & FLAG_WINDOW_TRANSPARENT) != (flags & FLAG_WINDOW_TRANSPARENT)) && ((flags & FLAG_WINDOW_TRANSPARENT) > 0))
 	{
-		printf("WINDOW: Framebuffer transparency can only be configured before window initialization");
+		log_warn("WINDOW: Framebuffer transparency can only be configured before window initialization");
 	}
 
 	// State change: FLAG_WINDOW_HIGHDPI
 	if (((WINDOW_ptr->flags & FLAG_WINDOW_HIGHDPI) != (flags & FLAG_WINDOW_HIGHDPI)) && ((flags & FLAG_WINDOW_HIGHDPI) > 0))
 	{
-		printf("WINDOW: High DPI can only be configured before window initialization");
+		log_warn("WINDOW: High DPI can only be configured before window initialization");
 	}
 
 	// State change: FLAG_WINDOW_MOUSE_PASSTHROUGH
@@ -774,7 +774,7 @@ void set_window_state(uint32_t flags)
 	// State change: FLAG_INTERLACED_HINT
 	if (((WINDOW_ptr->flags & FLAG_INTERLACED_HINT) != (flags & FLAG_INTERLACED_HINT)) && ((flags & FLAG_INTERLACED_HINT) > 0))
 	{
-		printf("RPI: Interlaced mode can only be configured before window initialization");
+		log_warn("RPI: Interlaced mode can only be configured before window initialization");
 	}
 }
 
@@ -862,13 +862,13 @@ void clear_window_state(uint32_t flags)
 	// State change: FLAG_WINDOW_TRANSPARENT
 	if (((WINDOW_ptr->flags & FLAG_WINDOW_TRANSPARENT) > 0) && ((flags & FLAG_WINDOW_TRANSPARENT) > 0))
 	{
-		printf("WINDOW: Framebuffer transparency can only be configured before window initialization");
+		log_warn("WINDOW: Framebuffer transparency can only be configured before window initialization");
 	}
 
 	// State change: FLAG_WINDOW_HIGHDPI
 	if (((WINDOW_ptr->flags & FLAG_WINDOW_HIGHDPI) > 0) && ((flags & FLAG_WINDOW_HIGHDPI) > 0))
 	{
-		printf("WINDOW: High DPI can only be configured before window initialization");
+		log_warn("WINDOW: High DPI can only be configured before window initialization");
 	}
 
 	// State change: FLAG_WINDOW_MOUSE_PASSTHROUGH
@@ -881,13 +881,13 @@ void clear_window_state(uint32_t flags)
 	// State change: FLAG_MSAA_4X_HINT
 	if (((WINDOW_ptr->flags & FLAG_MSAA_4X_HINT) > 0) && ((flags & FLAG_MSAA_4X_HINT) > 0))
 	{
-		printf("WINDOW: MSAA can only be configured before window initialization");
+		log_warn("WINDOW: MSAA can only be configured before window initialization");
 	}
 
 	// State change: FLAG_INTERLACED_HINT
 	if (((WINDOW_ptr->flags & FLAG_INTERLACED_HINT) > 0) && ((flags & FLAG_INTERLACED_HINT) > 0))
 	{
-		printf("RPI: Interlaced mode can only be configured before window initialization");
+		log_warn("RPI: Interlaced mode can only be configured before window initialization");
 	}
 }
 
@@ -914,14 +914,14 @@ void set_window_monitor(int monitor)
 	{
 		if (WINDOW_ptr->fullscreen)
 		{
-			printf("GLFW: Selected fullscreen monitor: [%i] %s", monitor, glfwGetMonitorName(monitors[monitor]));
+			log_trace("GLFW: Selected fullscreen monitor: [%i] %s", monitor, glfwGetMonitorName(monitors[monitor]));
 
 			const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor]);
 			glfwSetWindowMonitor(WINDOW_ptr->platformHandle, monitors[monitor], 0, 0, mode->width, mode->height, mode->refreshRate);
 		}
 		else
 		{
-			printf("GLFW: Selected monitor: [%i] %s", monitor, glfwGetMonitorName(monitors[monitor]));
+			log_info("GLFW: Selected monitor: [%i] %s", monitor, glfwGetMonitorName(monitors[monitor]));
 
 			const int screenWidth = (int)WINDOW_ptr->screen.width;
 			const int screenHeight = (int)WINDOW_ptr->screen.height;
@@ -941,7 +941,7 @@ void set_window_monitor(int monitor)
 			}
 		}
 	}
-	else printf("GLFW: Failed to find selected monitor");
+	else log_error("GLFW: Failed to find selected monitor");
 }
 
 // Set window minimum dimensions (FLAG_WINDOW_RESIZABLE)
@@ -1016,7 +1016,7 @@ void set_window_icon(Image image)
 			// NOTE 2: The specified image data is copied before this function returns
 			glfwSetWindowIcon(WINDOW_ptr->platformHandle, 1, icon);
 		}
-		else printf("GLFW: Window icon image must be in R8G8B8A8 pixel format");
+		else log_warn("GLFW: Window icon image must be in R8G8B8A8 pixel format");
 	}
 }
 
@@ -1046,7 +1046,7 @@ void set_window_icons(Image* images, int count)
 
 				valid++;
 			}
-			else printf("GLFW: Window icon image must be in R8G8B8A8 pixel format");
+			else log_warn("GLFW: Window icon image must be in R8G8B8A8 pixel format");
 		}
 		// NOTE: Images data is copied internally before this function returns
 		glfwSetWindowIcon(WINDOW_ptr->platformHandle, valid, icons);
@@ -1424,7 +1424,7 @@ int get_current_monitor(void)
 						closestDist = dist;
 					}
 				}
-				else printf("GLFW: Failed to find video mode for selected monitor");
+				else log_error("GLFW: Failed to find video mode for selected monitor");
 			}
 		}
 	}
@@ -1445,7 +1445,7 @@ void get_monitor_position(int monitor, float* dest)
 		glm_vec2((vec2){ (float)x, (float)y }, dest);
 		return;
 	}
-	else printf("GLFW: Failed to find selected monitor");
+	else log_error("GLFW: Failed to find selected monitor");
 	glm_vec2((vec2){ 0, 0 }, dest);
 }
 
@@ -1461,9 +1461,9 @@ int get_monitor_width(int monitor)
 		const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor]);
 
 		if (mode) width = mode->width;
-		else printf("GLFW: Failed to find video mode for selected monitor");
+		else log_error("GLFW: Failed to find video mode for selected monitor");
 	}
-	else printf("GLFW: Failed to find selected monitor");
+	else log_error("GLFW: Failed to find selected monitor");
 
 	return width;
 }
@@ -1480,9 +1480,9 @@ int get_monitor_height(int monitor)
 		const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor]);
 
 		if (mode) height = mode->height;
-		else printf("GLFW: Failed to find video mode for selected monitor");
+		else log_error("GLFW: Failed to find video mode for selected monitor");
 	}
-	else printf("GLFW: Failed to find selected monitor");
+	else log_error("GLFW: Failed to find selected monitor");
 
 	return height;
 }
@@ -1495,7 +1495,7 @@ int get_monitor_physical_width(int monitor)
 	GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
 
 	if ((monitor >= 0) && (monitor < monitorCount)) glfwGetMonitorPhysicalSize(monitors[monitor], &width, NULL);
-	else printf("GLFW: Failed to find selected monitor");
+	else log_error("GLFW: Failed to find selected monitor");
 
 	return width;
 }
@@ -1508,7 +1508,7 @@ int get_monitor_physical_height(int monitor)
 	GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
 
 	if ((monitor >= 0) && (monitor < monitorCount)) glfwGetMonitorPhysicalSize(monitors[monitor], NULL, &height);
-	else printf("GLFW: Failed to find selected monitor");
+	else log_error("GLFW: Failed to find selected monitor");
 
 	return height;
 }
@@ -1525,7 +1525,7 @@ int get_monitor_refresh_rate(int monitor)
 		const GLFWvidmode *vidmode = glfwGetVideoMode(monitors[monitor]);
 		refresh = vidmode->refreshRate;
 	}
-	else printf("GLFW: Failed to find selected monitor");
+	else log_error("GLFW: Failed to find selected monitor");
 
 	return refresh;
 }
@@ -1540,7 +1540,7 @@ const char *get_monitor_name(int monitor)
 	{
 		return glfwGetMonitorName(monitors[monitor]);
 	}
-	else printf("GLFW: Failed to find selected monitor");
+	else log_error("GLFW: Failed to find selected monitor");
 	return "";
 }
 //endregion

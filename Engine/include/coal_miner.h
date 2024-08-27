@@ -28,6 +28,7 @@
 #include <inttypes.h>
 #include "threadpool/cm_threadpool.h"
 #include "list/list.h"
+#include "log.h"
 
 typedef char Path[MAX_PATH_SIZE];
 

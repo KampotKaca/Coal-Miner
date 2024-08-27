@@ -2,19 +2,19 @@
 
 void cm_print_mat4(vec4* mat)
 {
-	printf("00: %f, 10: %f, 20: %f, 30: %f\n", mat[0][0], mat[1][0], mat[2][0], mat[3][0]);
-	printf("01: %f, 11: %f, 21: %f, 31: %f\n", mat[0][1], mat[1][1], mat[2][1], mat[3][1]);
-	printf("02: %f, 12: %f, 22: %f, 32: %f\n", mat[0][2], mat[1][2], mat[2][2], mat[3][2]);
-	printf("03: %f, 13: %f, 23: %f, 33: %f\n", mat[0][3], mat[1][3], mat[2][3], mat[3][3]);
+	log_trace("00: %f, 10: %f, 20: %f, 30: %f", mat[0][0], mat[1][0], mat[2][0], mat[3][0]);
+	log_trace("01: %f, 11: %f, 21: %f, 31: %f", mat[0][1], mat[1][1], mat[2][1], mat[3][1]);
+	log_trace("02: %f, 12: %f, 22: %f, 32: %f", mat[0][2], mat[1][2], mat[2][2], mat[3][2]);
+	log_trace("03: %f, 13: %f, 23: %f, 33: %f", mat[0][3], mat[1][3], mat[2][3], mat[3][3]);
 }
 
 void cm_print_v3(float* v3)
 {
-	printf("x: %f, y: %f, z: %f\n", v3[0], v3[1], v3[2]);
+	log_info("x: %f, y: %f, z: %f\n", v3[0], v3[1], v3[2]);
 }
 void cm_print_quat(float* q)
 {
-	printf("x: %f, y: %f, z: %f, w: %f\n", q[0], q[1], q[2], q[3]);
+	log_info("x: %f, y: %f, z: %f, w: %f\n", q[0], q[1], q[2], q[3]);
 }
 
 void cm_yp_to_direction(float yaw, float pitch, float* direction)
@@ -87,15 +87,15 @@ char *cm_load_file_text(const char *filePath)
                     text[count] = '\0';
 
                 }
-                else printf("FILEIO: [%s] Failed to allocated memory for file reading", filePath);
+                else log_error("FILEIO: [%s] Failed to allocated memory for file reading", filePath);
             }
-            else printf("FILEIO: [%s] Failed to read text file", filePath);
+            else log_error("FILEIO: [%s] Failed to read text file", filePath);
 
             fclose(file);
         }
-        else printf("FILEIO: [%s] Failed to open text file", filePath);
+        else log_error("FILEIO: [%s] Failed to open text file", filePath);
 	}
-	else printf("FILEIO: File name provided is not valid");
+	else log_error("FILEIO: File name provided is not valid");
 
 	return text;
 }

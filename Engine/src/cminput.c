@@ -334,7 +334,7 @@ void cm_get_touch_position(int index, float* position)
 	else
 	{
 		glm_vec2(GLM_VEC2_ONE, position);
-		printf("INPUT: Required touch point out of range (Max touch points: %i)", MAX_TOUCH_POINTS);
+		log_trace("INPUT: Required touch point out of range (Max touch points: %i)", MAX_TOUCH_POINTS);
 	}
 }
 
