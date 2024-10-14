@@ -1,25 +1,25 @@
 #include "terrainConfig.h"
 #include "terrain_blocks.h"
 
-typedef struct BlockData
+typedef struct
 {
 	float chance;
 	unsigned char spawnedBlock;
-}BlockData;
+}TerrainBlockData;
 
-BlockData blockData[BLOCK_GEN_COUNT] =
+TerrainBlockData blockData[BLOCK_GEN_COUNT] =
 {
-	(BlockData)
+	(TerrainBlockData)
 	{
 		0.5f,
 		BLOCK_STONE,
 	},
-	(BlockData)
+	(TerrainBlockData)
 	{
 		0.3f,
 		BLOCK_DIRT,
 	},
-	(BlockData)
+	(TerrainBlockData)
 	{
 		0.2f,
 		BLOCK_IRON,
@@ -41,7 +41,6 @@ unsigned char get_terrain_block_type(float caveValue)
 fnl_state get_terrain_cave_noise()
 {
 	fnl_state noise = fnlCreateState();
-	noise.seed = rand() % 10000000;
 	noise.noise_type = TERRAIN_CAVE_NOISE;
 	noise.fractal_type = TERRAIN_CAVE_FRACTAL;
 	noise.frequency = TERRAIN_CAVE_FREQUENCY;
@@ -55,7 +54,6 @@ fnl_state get_terrain_cave_noise()
 fnl_state get_terrain_biome_flat_noise()
 {
 	fnl_state noise = fnlCreateState();
-	noise.seed = rand() % 10000000;
 	noise.noise_type = TERRAIN_FLAT_NOISE;
 	noise.fractal_type = TERRAIN_FLAT_FRACTAL;
 	noise.frequency = TERRAIN_FLAT_FREQUENCY;
@@ -68,7 +66,6 @@ fnl_state get_terrain_biome_flat_noise()
 fnl_state get_terrain_biome_small_hill_noise()
 {
 	fnl_state noise = fnlCreateState();
-	noise.seed = rand() % 10000000;
 	noise.noise_type = TERRAIN_FLAT_NOISE;
 	noise.fractal_type = TERRAIN_FLAT_FRACTAL;
 	noise.frequency = TERRAIN_FLAT_FREQUENCY;
@@ -81,7 +78,6 @@ fnl_state get_terrain_biome_small_hill_noise()
 fnl_state get_terrain_biome_hill_noise()
 {
 	fnl_state noise = fnlCreateState();
-	noise.seed = rand() % 10000000;
 	noise.noise_type = TERRAIN_SMALL_HILL_NOISE;
 	noise.fractal_type = TERRAIN_SMALL_HILL_FRACTAL;
 	noise.frequency = TERRAIN_SMALL_HILL_FREQUENCY;
@@ -94,7 +90,6 @@ fnl_state get_terrain_biome_hill_noise()
 fnl_state get_terrain_biome_mountain_noise()
 {
 	fnl_state noise = fnlCreateState();
-	noise.seed = rand() % 10000000;
 	noise.noise_type = TERRAIN_MOUNTAIN_NOISE;
 	noise.fractal_type = TERRAIN_MOUNTAIN_FRACTAL;
 	noise.frequency = TERRAIN_MOUNTAIN_FREQUENCY;
@@ -107,7 +102,6 @@ fnl_state get_terrain_biome_mountain_noise()
 fnl_state get_terrain_biome_high_mountain_noise()
 {
 	fnl_state noise = fnlCreateState();
-	noise.seed = rand() % 10000000;
 	noise.noise_type = TERRAIN_HIGH_MOUNTAIN_NOISE;
 	noise.fractal_type = TERRAIN_HIGH_MOUNTAIN_FRACTAL;
 	noise.frequency = TERRAIN_HIGH_MOUNTAIN_FREQUENCY;

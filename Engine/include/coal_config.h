@@ -20,6 +20,6 @@
 #define MAX_NUM_UBOS                  16
 #define FRAME_RATE_RECORD_RATE        60
 
-#define MAX_THREADS_IN_THREAD_POOL    16
+#define MAX_THREADS_IN_THREAD_POOL    32
 
 #endif //COAL_CONFIG_H

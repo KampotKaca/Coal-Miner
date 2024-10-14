@@ -1,11 +1,11 @@
 #include "terrain_meshing.h"
 #include "coal_helper.h"
 
-static void T_CreateTerrainChunkFaces(void* args);
-static void T_TerrainChunkFacesCreationFinished(void* args);
+static void T_CreateTerrainChunkFaces(uint32_t threadId, void* args);
+static void T_TerrainChunkFacesCreationFinished(uint32_t threadId, void* args);
 
-static void T_TerrainCreateGroupFaces(void* args);
-static void T_TerrainGroupFacesCreationFinished(void* args);
+static void T_TerrainCreateGroupFaces(uint32_t threadId, void* args);
+static void T_TerrainGroupFacesCreationFinished(uint32_t threadId, void* args);
 
 VoxelTerrain* m_terrain;
 
@@ -51,26 +51,26 @@ void send_terrain_group_face_creation_job(uint32_t x, uint32_t z)
 }
 
 //region thread callbacks
-static void T_CreateTerrainChunkFaces(void* args)
+static void T_CreateTerrainChunkFaces(uint32_t threadId, void* args)
 {
 	uint32_t * cArgs = (uint32_t *)args;
 	create_terrain_chunk_faces(cArgs[0], cArgs[1], cArgs[2]);
 }
 
-static void T_TerrainChunkFacesCreationFinished(void* args)
+static void T_TerrainChunkFacesCreationFinished(uint32_t threadId, void* args)
 {
 	uint32_t * cArgs = (uint32_t *)args;
 	m_terrain->chunkGroups[cArgs[0] * TERRAIN_VIEW_RANGE + cArgs[2]].chunks[cArgs[1]].flags.state = CHUNK_REQUIRES_UPLOAD;
 }
 
-static void T_TerrainCreateGroupFaces(void* args)
+static void T_TerrainCreateGroupFaces(uint32_t threadId, void* args)
 {
 	uint32_t* cArgs = (uint32_t*)args;
 	for (int y = 0; y < TERRAIN_HEIGHT; ++y)
 		create_terrain_chunk_faces(cArgs[0], y, cArgs[1]);
 }
 
-static void T_TerrainGroupFacesCreationFinished(void* args)
+static void T_TerrainGroupFacesCreationFinished(uint32_t threadId, void* args)
 {
 	uint32_t* cArgs = (uint32_t*)args;
 	TerrainChunkGroup* group = &m_terrain->chunkGroups[cArgs[0] * TERRAIN_VIEW_RANGE + cArgs[1]];
@@ -155,22 +155,30 @@ static inline void AddFace(List* list,
 	uint32_t faceBlock = faceId;
 	faceBlock <<= 2;
 
+	uint32_t ao00 = 0, ao01 = 0, ao10 = 0, ao11 = 0;
+
 	uint32_t buffer[TERRAIN_MEM_PRINT_SIZE] =
 	{
-		mainBlock,
+		mainBlock | ao00,
 		faceBlock | 0b00,
-		mainBlock,
+		mainBlock | ao01,
 		faceBlock | 0b01,
-		mainBlock,
+		mainBlock | ao11,
 		faceBlock | 0b11,
-		mainBlock,
+		mainBlock | ao00,
 		faceBlock | 0b00,
-		mainBlock,
+		mainBlock | ao11,
 		faceBlock | 0b11,
-		mainBlock,
+		mainBlock | ao10,
 		faceBlock | 0b10
 	};
+
 	list_add(list, 32, buffer, sizeof(buffer));
+}
+
+static inline int32_t FaceDirection(int32_t faceId)
+{
+	return ((faceId % 2) * 2 - 1) * (-1);
 }
 
 void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
@@ -220,6 +228,7 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 	uint64_t fFaces[TERRAIN_CHUNK_HORIZONTAL_SLICE];
 	uint64_t bFaces[TERRAIN_CHUNK_HORIZONTAL_SLICE];
 	uint64_t *faces[6] = { fFaces, bFaces, fFaces, bFaces, fFaces, bFaces };
+	uint8_t *dirChunks[6] = { frontChunk, backChunk, rightChunk, leftChunk, topChunk, bottomChunk };
 
 	//region Front&Back
 	for (uint32_t y = 0; y < TERRAIN_CHUNK_SIZE; ++y)
@@ -248,6 +257,18 @@ void create_terrain_chunk_faces(uint32_t xId, uint32_t yId, uint32_t zId)
 					mask &= mask - 1u;
 
 					struct GreedySize size = GreedyMeshing(x, y, z, currentFace);
+					int32_t aoZ = (int32_t)z + FaceDirection((int32_t)i);
+					uint8_t* bPtr = voxels;
+					if(aoZ >= TERRAIN_CHUNK_SIZE || aoZ < 0)
+					{
+						aoZ = (aoZ + TERRAIN_CHUNK_SIZE) % TERRAIN_CHUNK_SIZE;
+						bPtr = dirChunks[i];
+					}
+
+					//12 samples, 3 per vertex
+//					uint32_t aoSample = 0;
+
+
 					AddFace(&chunk->buffer, x, y, z, size, i);
 					faceCount++;
 				}

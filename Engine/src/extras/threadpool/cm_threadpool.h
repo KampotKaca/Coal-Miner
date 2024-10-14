@@ -4,12 +4,13 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include "coal_config.h"
+#include <stdint.h>
 
 typedef struct
 {
 	void* args;
-	void (*job)(void* args);
-	void (*callbackJob)(void* args);
+	void (*job)(uint32_t threadId, void* args);
+	void (*callbackJob)(uint32_t threadId, void* args);
 }ThreadJob;
 
 typedef struct

@@ -1,8 +1,9 @@
 #include "terrain_noise.h"
 #include "terrain_blocks.h"
+#include "coal_miner.h"
 
-static void T_GenerateTerrainNoise(void* args);
-static void T_OnTerrainNoiseGenerationFinished(void* args);
+static void T_GenerateTerrainNoise(uint32_t threadId, void* args);
+static void T_OnTerrainNoiseGenerationFinished(uint32_t threadId, void* args);
 
 VoxelTerrain* n_terrain;
 
@@ -28,7 +29,7 @@ void send_terrain_noise_job(uint32_t x, uint32_t z)
 	cm_submit_job(n_terrain->pool, job, false);
 }
 
-static void T_GenerateTerrainNoise(void* args)
+static void T_GenerateTerrainNoise(uint32_t threadId, void* args)
 {
 	uint32_t * cArgs = (uint32_t *)args;
 	generate_terrain_height_map((uint32_t[2]) {cArgs[0], cArgs[1]}, (uint32_t[2]) {cArgs[2], cArgs[3]});
@@ -39,7 +40,7 @@ static void T_GenerateTerrainNoise(void* args)
 	}
 }
 
-void T_OnTerrainNoiseGenerationFinished(void* args)
+void T_OnTerrainNoiseGenerationFinished(uint32_t threadId, void* args)
 {
 	uint32_t * cArgs = (uint32_t *)args;
 

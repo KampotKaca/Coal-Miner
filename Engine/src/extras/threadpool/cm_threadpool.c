@@ -1,6 +1,12 @@
 #include "cm_threadpool.h"
 #include "coal_miner.h"
 
+typedef struct
+{
+	ThreadPool* pool;
+	uint32_t threadId;
+}ThreadData;
+
 static void* ExecuteJob(void* args);
 
 ThreadPool* cm_create_thread_pool(uint32_t numThreads, uint32_t initialCapacity)
@@ -25,7 +31,9 @@ ThreadPool* cm_create_thread_pool(uint32_t numThreads, uint32_t initialCapacity)
 	
 	for (int i = 0; i < numThreads; ++i)
 	{
-		if(pthread_create(&pool->threads[pool->aliveThreadCount], NULL, &ExecuteJob, pool) != 0)
+		ThreadData threadData = { .pool = pool, .threadId = i };
+
+		if(pthread_create(&pool->threads[pool->aliveThreadCount], NULL, &ExecuteJob, &threadData) != 0)
 			perror("Failed to create the thread\n");
 		pool->aliveThreadCount++;
 	}
@@ -90,7 +98,11 @@ void cm_destroy_thread_pool(ThreadPool* pool)
 
 static void* ExecuteJob(void* args)
 {
-	ThreadPool* pool = (ThreadPool*)args;
+	ThreadData* data = (ThreadData*)args;
+
+	ThreadPool* pool = data->pool;
+	uint32_t threadId = data->threadId;
+
 	while (pool->isAlive)
 	{
 		pthread_mutex_lock(&pool->lock);
@@ -113,11 +125,11 @@ static void* ExecuteJob(void* args)
 		
 		if(job.job != NULL)
 		{
-			job.job(job.args);
+			job.job(threadId, job.args);
 			
 			pthread_mutex_lock(&pool->lock);
 			
-			if(job.callbackJob != NULL) job.callbackJob(job.args);
+			if(job.callbackJob != NULL) job.callbackJob(threadId, job.args);
 			pool->workingThreads--;
 			if(job.args != NULL)
 			{

@@ -253,6 +253,14 @@ static void InitTerrainNoise()
 	voxelTerrain.biomes[BIOME_HILL] = get_terrain_biome_hill_noise();
 	voxelTerrain.biomes[BIOME_MOUNTAIN] = get_terrain_biome_mountain_noise();
 	voxelTerrain.biomes[BIOME_HIGH_MOUNTAIN] = get_terrain_biome_high_mountain_noise();
+
+#ifdef TERRAIN_RANDOM_WORLD_SEED
+	int32_t worldSeed = rand() % 10000000;
+#else
+	int32_t worldSeed = TERRAIN_WORLD_SEED % 10000000;
+#endif
+
+	for (uint32_t i = 0; i < BIOME_COUNT; ++i) voxelTerrain.biomes[i].seed = worldSeed;
 }
 
 static void LoadTerrainChunks()
@@ -315,7 +323,7 @@ static void UnloadChunkGroup(TerrainChunkGroup* group)
 	{
 		TerrainChunk* chunk = &group->chunks[y];
 		chunk->flags.state = CHUNK_REQUIRES_FACES;
-		list_clear(&chunk->buffer);
+//		list_clear(&chunk->buffer);
 
 		chunk->flags.isUploaded = 0;
 		chunk->flags.faceCount = 0;
@@ -576,6 +584,7 @@ static bool TryUploadGroup(TerrainChunkGroup* group)
 			cm_upload_ssbo(voxelTerrain.voxelsSsbo, id * TERRAIN_CHUNK_VOXEL_COUNT, TERRAIN_CHUNK_VOXEL_COUNT, chunk->voxels);
 			chunk->flags.state = CHUNK_READY_TO_DRAW;
 			chunk->flags.isUploaded = true;
+//			list_clear(&chunk->buffer);
 			uploaded = true;
 		}
 	}
