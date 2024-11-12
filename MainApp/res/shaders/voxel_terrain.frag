@@ -1,19 +1,20 @@
 #version 430 core
 precision highp float;
 
+const float EPSILON = .999999f;
 const uint TERRAIN_CHUNK_SIZE = 64;
 const uint TERRAIN_CHUNK_VOXEL_COUNT = TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE;
 const uint TERRAIN_CHUNK_VOXEL_COUNT_SPLIT = TERRAIN_CHUNK_VOXEL_COUNT / 4;
 
 const uint UV_SCALE = 16;
-const float UV_STEP = 1.0 / UV_SCALE;
+const float UV_STEP = 1.0f / UV_SCALE;
 
-//layout(std140, binding = 33) uniform Light
-//{
-//    vec3 lightPosition;
-//    vec3 lightColor;
-//    float lightLuminosity;
-//};
+layout(std140, binding = 33) uniform GlobalLight
+{
+    vec3 lightDirection;
+    vec3 lightColor;
+    float lightLuminosity;
+};
 
 const float faceColors[6] =
 {
@@ -31,25 +32,51 @@ in vec3 out_lPos;
 in vec2 out_facePos;
 in vec3 out_ao_footprint;
 
+in vec3 out_position;
+in flat vec3 out_normal;
+
 out vec4 finalColor;
 
 uniform sampler2D u_surfaceTex[6];
 uniform uvec4 u_chunkIndex;
 
+uvec3 round_vec3(vec3 v3)
+{
+    uvec3 result;
+    if(fract(v3.x) >= EPSILON) result.x = uint(v3.x) + 1u;
+    else result.x = uint(v3.x);
+
+    if(fract(v3.y) >= EPSILON) result.y = uint(v3.y) + 1u;
+    else result.y = uint(v3.y);
+
+    if(fract(v3.z) >= EPSILON) result.z = uint(v3.z) + 1u;
+    else result.z = uint(v3.z);
+    return result;
+}
+
+vec3 diffuse_global_lighting(vec3 normal)
+{
+    float power = max(0.0f, dot(-lightDirection, normal));
+    return lightLuminosity * power * lightColor;
+}
+
 void main()
 {
-    uvec3 voxelPos = out_blockPos + uvec3(out_lPos) - uvec3(out_faceId == 2u, out_faceId == 4u, out_faceId == 0u);
+    uvec3 voxelPos = out_blockPos + round_vec3(out_lPos) - uvec3(out_faceId == 2u, out_faceId == 4u, out_faceId == 0u);
     uint id = voxelPos.y * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE + voxelPos.x * TERRAIN_CHUNK_SIZE + voxelPos.z;
     uint offset = (id % 4u) * 8u;
     uint bufferIndex = u_chunkIndex.w * TERRAIN_CHUNK_VOXEL_COUNT_SPLIT + uint(id * 0.25f);
     uint voxel = (voxels[bufferIndex] & (0xff << offset)) >> offset;
 
     voxel--;
-    vec2 uv = vec2((voxel / UV_SCALE) * UV_STEP, (voxel % UV_SCALE) * UV_STEP) +
-                    fract(out_facePos) * UV_STEP;
+    vec2 uv = vec2(voxel / UV_SCALE, voxel % UV_SCALE) + fract(out_facePos);
+    uv *= UV_STEP;
 
-    uv.y = 1 - uv.y;
+    uv.y = 1.0f - uv.y;
     finalColor = texture(u_surfaceTex[out_faceId], uv);
+//    finalColor.rgb *= lightLuminosity;
+//    finalColor.rgb *= diffuse_global_lighting(out_normal);
     finalColor.rgb *= out_ao_footprint;
     finalColor.rgb *= faceColors[out_faceId];
+    finalColor.a = 1f;
 }

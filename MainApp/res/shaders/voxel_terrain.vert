@@ -18,6 +18,16 @@ const vec3 AO_FOOTPRINT[4] =
     { 0.25f, 0.25f, 0.25f },
 };
 
+const vec3 NORMAL_FOOTPRINT[6] =
+{
+    { 0.0f, 0.0f, 1.0f },
+    { 0.0f, 0.0f, -1.0f },
+    { 1.0f, 0.0f, 0.0f },
+    { -1.0f, 0.0f, 0.0f },
+    { 0.0f, 1.0f, 0.0f },
+    { 0.0f, -1.0f, 0.0f },
+};
+
 layout(std140, binding = 32) uniform Camera
 {
     mat4 cameraView;
@@ -35,7 +45,6 @@ layout(std140, binding = 32) uniform Camera
 //Y
 //3bit FaceId
 //2bit Id
-
 layout(location = 0) in uvec2 vertex;
 
 //xyz index, w id
@@ -46,6 +55,9 @@ out flat uvec3 out_blockPos;
 out vec3 out_lPos;
 out vec2 out_facePos;
 out vec3 out_ao_footprint;
+
+out vec3 out_position;
+out flat vec3 out_normal;
 
 void main()
 {
@@ -106,7 +118,8 @@ void main()
         break;
     }
 
+    out_normal = NORMAL_FOOTPRINT[out_faceId];
     out_lPos = vec3(vertexPos);
-    vec3 pos = u_chunkIndex.xyz * CHUNK_SIZE - vec3(WORLD_EDGE, 0, WORLD_EDGE) + vertexPos + out_blockPos;
-    gl_Position = cameraViewProjection * vec4(pos, 1.0);
+    out_position = u_chunkIndex.xyz * CHUNK_SIZE - vec3(WORLD_EDGE, 0, WORLD_EDGE) + vertexPos + out_blockPos;
+    gl_Position = cameraViewProjection * vec4(out_position, 1.0);
 }

@@ -10,6 +10,7 @@
 
 #define TRANSFORM_INIT { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 }
 #define CAMERA_INIT { 0, 2, -5, 0, 0, 1, 0, 1, 0, 45, 0, 0.01, 200 }
+#define GLOBAL_LIGHT_INIT { 0, -1, 0, 1, 1, 1, 1 }
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -348,6 +349,13 @@ typedef struct
 
 typedef struct
 {
+	vec3 direction;
+	vec3 color;
+	float luminosity;
+}GlobalLight;
+
+typedef struct
+{
 	vec3 normal;    //Normal of the surface
 	float distance; //From origin
 }Plane;
@@ -484,11 +492,16 @@ extern bool cm_is_on_or_forward_plane(Plane* plane, BoundingVolume* volume);
 extern bool cm_is_on_or_backward_plane(Plane* plane, BoundingVolume* volume);
 //endregion
 
+//region Light
+extern void cm_set_global_light(GlobalLight light);
+//endregion
+
 //region GL Buffers
 extern Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, const void* data);
 extern void cm_upload_ssbo(Ssbo ssbo, unsigned int offset, unsigned int size, const void* data);
 extern void cm_unload_ssbo(Ssbo ssbo);
 extern bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, const void* data);
+extern void cm_upload_ubos();
 extern Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo);
 extern void cm_unload_vao(Vao vao);
 

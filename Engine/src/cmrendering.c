@@ -11,8 +11,16 @@ struct CameraUbo
 	vec3 direction;
 };
 
+struct GlobalLightUbo
+{
+	vec3 lightDirection;
+	vec3 lightColor;
+	float lightLuminosity;
+};
+
 Window* CM_RN_WIN_P;
 struct CameraUbo CM_CAMERA_UBO;
+struct GlobalLightUbo CM_GLOBAL_LIGHT_UBO;
 Frustum CM_MAIN_FRUSTUM;
 
 const unsigned int cmQuadVertices[4] =
@@ -34,7 +42,8 @@ void load_renderer(Window* wPtr)
 {
 	CM_RN_WIN_P = wPtr;
 	
-	cm_load_ubo(CAMERA_UBO_BINDING_ID, 3 * sizeof(mat4) + 2 * sizeof(vec3), &CM_CAMERA_UBO);
+	cm_load_ubo(CAMERA_UBO_BINDING_ID, sizeof(struct CameraUbo), &CM_CAMERA_UBO);
+	cm_load_ubo(GLOBAL_LIGHT_UBO_BINDING_ID, sizeof(struct GlobalLightUbo), &CM_GLOBAL_LIGHT_UBO);
 	CreateQuad();
 }
 
@@ -72,15 +81,21 @@ void cm_begin_mode_3d(Camera3D camera)
 
 	glm_vec3_copy(camera.position, CM_CAMERA_UBO.position);
 	glm_vec3_copy(camera.direction, CM_CAMERA_UBO.direction);
-
-	upload_ubos();
+	
 	cm_enable_depth_test();
 
 	vec4 planes[6];
 	glm_frustum_planes(CM_CAMERA_UBO.viewProjection, planes);
-
+	
 	for (int i = 0; i < 6; ++i)
 		memcpy(CM_MAIN_FRUSTUM, planes, 6 * sizeof(vec4));
+}
+
+void cm_set_global_light(GlobalLight light)
+{
+	glm_vec3_copy(light.direction, CM_GLOBAL_LIGHT_UBO.lightDirection);
+	glm_vec3_copy(light.color, CM_GLOBAL_LIGHT_UBO.lightColor);
+	CM_GLOBAL_LIGHT_UBO.lightLuminosity = light.luminosity;
 }
 
 void cm_end_mode_3d()

@@ -440,8 +440,8 @@ bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, const void* data
 
 	glGenBuffers(1, &ubo.id);
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo.id);
-	glBufferData(GL_UNIFORM_BUFFER, dataSize, data, GL_STATIC_DRAW);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 32, ubo.id);
+	glBufferData(GL_UNIFORM_BUFFER, dataSize, data, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_UNIFORM_BUFFER, ubo.bindingId, ubo.id);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	ubo.isReady = true;
@@ -450,7 +450,7 @@ bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, const void* data
 	return true;
 }
 
-void upload_ubos()
+void cm_upload_ubos()
 {
 	for (int i = 0; i < cmUboCount; ++i)
 	{
