@@ -37,10 +37,10 @@ uniform uvec4 u_chunkIndex;
 
 void main()
 {
-    ivec3 voxelPos = ivec3(out_lPos - vec3(out_faceId == 2, out_faceId == 4, out_faceId == 0));
+    ivec3 voxelPos = ivec3(out_lPos) - ivec3(out_faceId == 2u, out_faceId == 4u, out_faceId == 0u);
     uint id = voxelPos.y * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE + voxelPos.x * TERRAIN_CHUNK_SIZE + voxelPos.z;
-    uint offset = (id % 4) * 8;
-    uint bufferIndex = u_chunkIndex.w * TERRAIN_CHUNK_VOXEL_COUNT_SPLIT + uint(id * 0.25);
+    uint offset = (id % 4u) * 8u;
+    uint bufferIndex = u_chunkIndex.w * TERRAIN_CHUNK_VOXEL_COUNT_SPLIT + uint(id * 0.25f);
     uint voxel = (voxels[bufferIndex] & (0xff << offset)) >> offset;
 
     voxel--;

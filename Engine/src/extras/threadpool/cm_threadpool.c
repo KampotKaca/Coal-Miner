@@ -31,9 +31,11 @@ ThreadPool* cm_create_thread_pool(uint32_t numThreads, uint32_t initialCapacity)
 	
 	for (int i = 0; i < numThreads; ++i)
 	{
-		ThreadData threadData = { .pool = pool, .threadId = i };
+		ThreadData* threadData = (ThreadData*)CM_MALLOC(sizeof(ThreadData));
+		threadData->pool = pool;
+		threadData->threadId = i;
 
-		if(pthread_create(&pool->threads[pool->aliveThreadCount], NULL, &ExecuteJob, &threadData) != 0)
+		if(pthread_create(&pool->threads[pool->aliveThreadCount], NULL, &ExecuteJob, threadData) != 0)
 			perror("Failed to create the thread\n");
 		pool->aliveThreadCount++;
 	}
@@ -44,20 +46,20 @@ ThreadPool* cm_create_thread_pool(uint32_t numThreads, uint32_t initialCapacity)
 void cm_submit_job(ThreadPool* pool, ThreadJob job, bool asLast)
 {
 	pthread_mutex_lock(&pool->lock);
-
-	if(pool->jobCount >= pool->capacity)
+	
+	if (pool->jobCount >= pool->capacity)
 	{
 		uint32_t oldCapacity = pool->capacity;
 		pool->capacity *= 2;
 		void* mem = CM_REALLOC(pool->jobs, pool->capacity * sizeof(ThreadJob));
-		if(mem == NULL)
+		if (mem == NULL)
 		{
 			perror("Unable to allocate memory");
 			exit(-1);
 		}
 		else
 		{
-			memset(&mem[oldCapacity * sizeof(ThreadJob)], 0, oldCapacity * sizeof(ThreadJob));
+			memset(((char*)mem) + (oldCapacity * sizeof(ThreadJob)), 0, (pool->capacity - oldCapacity) * sizeof(ThreadJob));
 			pool->jobs = mem;
 		}
 	}
@@ -106,14 +108,16 @@ static void* ExecuteJob(void* args)
 	while (pool->isAlive)
 	{
 		pthread_mutex_lock(&pool->lock);
-		while(pool->jobCount == 0)
+		
+		while (pool->jobCount == 0 && pool->isAlive)
 		{
 			pthread_cond_wait(&pool->signal, &pool->lock);
-			if(!pool->isAlive)
-			{
-				pthread_mutex_unlock(&pool->lock);
-				return NULL;
-			}
+		}
+		
+		if (!pool->isAlive && pool->jobCount == 0)
+		{
+			pthread_mutex_unlock(&pool->lock);
+			break;
 		}
 		
 		pool->workingThreads++;
@@ -141,5 +145,6 @@ static void* ExecuteJob(void* args)
 		}
 	}
 	
+	CM_FREE(args);
 	return NULL;
 }
