@@ -26,6 +26,7 @@ layout(std430, binding = 48) buffer VoxelBuffer
 };
 
 in flat uint out_faceId;
+in flat uvec3 out_blockPos;
 in vec3 out_lPos;
 in vec2 out_facePos;
 in vec3 out_ao_footprint;
@@ -37,7 +38,7 @@ uniform uvec4 u_chunkIndex;
 
 void main()
 {
-    ivec3 voxelPos = ivec3(out_lPos) - ivec3(out_faceId == 2u, out_faceId == 4u, out_faceId == 0u);
+    uvec3 voxelPos = out_blockPos + uvec3(out_lPos) - uvec3(out_faceId == 2u, out_faceId == 4u, out_faceId == 0u);
     uint id = voxelPos.y * TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_SIZE + voxelPos.x * TERRAIN_CHUNK_SIZE + voxelPos.z;
     uint offset = (id % 4u) * 8u;
     uint bufferIndex = u_chunkIndex.w * TERRAIN_CHUNK_VOXEL_COUNT_SPLIT + uint(id * 0.25f);
@@ -45,7 +46,7 @@ void main()
 
     voxel--;
     vec2 uv = vec2((voxel / UV_SCALE) * UV_STEP, (voxel % UV_SCALE) * UV_STEP) +
-                    mod(out_facePos, 1.0f) * UV_STEP;
+                    fract(out_facePos) * UV_STEP;
 
     uv.y = 1 - uv.y;
     finalColor = texture(u_surfaceTex[out_faceId], uv);

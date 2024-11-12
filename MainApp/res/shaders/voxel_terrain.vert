@@ -42,6 +42,7 @@ layout(location = 0) in uvec2 vertex;
 uniform uvec4 u_chunkIndex;
 
 out flat uint out_faceId;
+out flat uvec3 out_blockPos;
 out vec3 out_lPos;
 out vec2 out_facePos;
 out vec3 out_ao_footprint;
@@ -55,15 +56,15 @@ void main()
     vertX >>= 2;
     out_ao_footprint = AO_FOOTPRINT[aoPrint];
 
-    ivec2 size = ivec2((vertX & 4032u) >> 6, (vertX & 63u));
+    ivec2 size = ivec2((vertX & 4032u) >> 6u, (vertX & 63u));
     size.x++;
     size.y++;
     vertX >>= 12;
 
-    ivec3 blockPos = ivec3((vertX & 258048u) >> 12, (vertX & 4032u) >> 6, vertX & 63u);
+    out_blockPos = uvec3((vertX & 258048u) >> 12u, (vertX & 4032u) >> 6u, vertX & 63u);
     vertX >>= 18;
 
-    ivec2 lPos = ivec2((vertY & 2u) >> 1, vertY & 1u);
+    ivec2 lPos = ivec2((vertY & 2u) >> 1u, vertY & 1u);
     vertY >>= 2;
 
     out_faceId = vertY & 7u;
@@ -105,7 +106,7 @@ void main()
         break;
     }
 
-    out_lPos = blockPos + vertexPos;
-    vec3 pos = u_chunkIndex.xyz * CHUNK_SIZE - vec3(WORLD_EDGE, 0, WORLD_EDGE) + out_lPos;
+    out_lPos = vec3(vertexPos);
+    vec3 pos = u_chunkIndex.xyz * CHUNK_SIZE - vec3(WORLD_EDGE, 0, WORLD_EDGE) + vertexPos + out_blockPos;
     gl_Position = cameraViewProjection * vec4(pos, 1.0);
 }
