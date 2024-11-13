@@ -3,7 +3,7 @@
 
 //This should not be modified
 #define TERRAIN_CHUNK_SIZE 64
-#define TERRAIN_VOXELS_SSBO_BINDING 48
+#define TERRAIN_VOXELS_SSBO_BINDING 16
 #define TERRAIN_MEM_PRINT_SIZE 12
 
 //Can be modified

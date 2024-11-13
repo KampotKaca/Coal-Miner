@@ -250,6 +250,29 @@ void setup_framebuffer(Window* window)
 	}
 }
 
+void GLAPIENTRY OpenglDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+{
+	// Ignore specific non-critical error IDs if needed
+	if (id == 131169 || id == 131185 || id == 131218 || id == 131204) return; // Non-significant error
+	
+	const char* typeStr = "";
+	switch (type)
+	{
+		case GL_DEBUG_TYPE_ERROR:               typeStr = "Error"; break;
+		case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: typeStr = "Deprecated Behaviour"; break;
+		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  typeStr = "Undefined Behaviour"; break;
+		case GL_DEBUG_TYPE_PORTABILITY:         typeStr = "Portability"; break;
+		case GL_DEBUG_TYPE_PERFORMANCE:         typeStr = "Performance"; break;
+		case GL_DEBUG_TYPE_MARKER:              typeStr = "Marker"; break;
+		case GL_DEBUG_TYPE_PUSH_GROUP:          typeStr = "Push Group"; break;
+		case GL_DEBUG_TYPE_POP_GROUP:           typeStr = "Pop Group"; break;
+		case GL_DEBUG_TYPE_OTHER:               typeStr = "Other"; break;
+		default: break;
+	}
+	
+	log_error("[Open GL] [%s] (%d): %s\n", typeStr, id, message);
+}
+
 bool init_platform(Window* window, Input* input)
 {
 	WINDOW_ptr = window;
@@ -502,6 +525,15 @@ bool init_platform(Window* window, Input* input)
 //			strcpy(input->Gamepad.name[i], glfwGetJoystickName(i));
 		}
 	}
+
+#if DEBUG
+	glEnable(GL_DEBUG_OUTPUT);
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // Makes sure the callback is synchronous for easier debugging
+	glDebugMessageCallback(OpenglDebugCallback, nullptr);
+
+	// Optionally, filter messages (e.g., disable notifications)
+	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
+#endif
 
 	return true;
 }

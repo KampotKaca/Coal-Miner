@@ -8,6 +8,12 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_definitions(-DDEBUG)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_definitions(-DRELEASE)
+endif()
+
 file(GLOB_RECURSE MAIN_SRC CONFIGURE_DEPENDS MainApp/src/*.c)
 
 add_subdirectory(Engine)
@@ -24,4 +30,12 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     file(COPY ${CMAKE_SOURCE_DIR}/MainApp/res DESTINATION ${CMAKE_BINARY_DIR})
     target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RES_PATH="${CMAKE_BINARY_DIR}./res/") #BUILD
 endif()
+
+add_custom_target(copy_res ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/MainApp/res ${CMAKE_BINARY_DIR}/res
+        COMMENT "Copying resource files..."
+)
+
+# Make the custom target a dependency of the main project
+add_dependencies(${CMAKE_PROJECT_NAME} copy_res)
 #endregion

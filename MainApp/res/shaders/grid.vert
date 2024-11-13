@@ -4,7 +4,7 @@
 layout(location = 0) in uint vertex;
 layout(location = 1) in uint colorId;
 
-layout(std140, binding = 32) uniform Camera
+layout(std140, binding = 8) uniform Camera
 {
     mat4 cameraView;
     mat4 cameraProjection;

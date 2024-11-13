@@ -28,7 +28,7 @@ const vec3 NORMAL_FOOTPRINT[6] =
     { 0.0f, -1.0f, 0.0f },
 };
 
-layout(std140, binding = 32) uniform Camera
+layout(std140, binding = 8) uniform Camera
 {
     mat4 cameraView;
     mat4 cameraProjection;

@@ -17,7 +17,7 @@
 #define APPLICATION_EXIT_KEY         256
 #define MAX_PATH_SIZE                256
 #define MAX_NUM_APPLICATION_ICONS      8
-#define MAX_NUM_UBOS                  16
+#define MAX_NUM_UBOS                   8
 #define FRAME_RATE_RECORD_RATE        60
 
 #define MAX_THREADS_IN_THREAD_POOL    32

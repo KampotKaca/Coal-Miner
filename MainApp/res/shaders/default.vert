@@ -4,7 +4,7 @@
 layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexColor;
 
-layout(std140, binding = 32) uniform Camera
+layout(std140, binding = 8) uniform Camera
 {
     mat4 cameraView;
     mat4 cameraProjection;

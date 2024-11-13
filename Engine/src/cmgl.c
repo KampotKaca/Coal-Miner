@@ -2,6 +2,17 @@
 #include <glad/glad.h>
 #include "coal_image.h"
 
+#define CHECK_GL_ERROR(...)                                     \
+    {                                                           \
+        GLenum err;                                             \
+        while ((err = glGetError()) != GL_NO_ERROR) {           \
+            log_log(LOG_ERROR, __FILE__, __LINE__,              \
+					"[Open GL] error in %s: %s",                \
+					__VA_ARGS__, gluErrorString(err));          \
+            break;                                              \
+        }                                                       \
+    }
+
 typedef struct Ubo
 {
 	bool isReady;
@@ -301,7 +312,7 @@ Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode)
 		if (shader.id > 0) glDetachShader(shader.id, fragmentShaderId);
 		glDeleteShader(fragmentShaderId);
 	}
-
+	
 	return shader;
 }
 
@@ -388,6 +399,7 @@ unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId)
 
         program = 0;
     }
+	
 	return program;
 }
 
@@ -432,18 +444,18 @@ bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, const void* data
 		perror("Maximum amount of Ubos reached please allocate more space from config file");
 		return false;
 	}
-
+	
 	Ubo ubo = {};
 	ubo.dataSize = dataSize;
 	ubo.data = data;
 	ubo.bindingId = bindingId;
-
+	
 	glGenBuffers(1, &ubo.id);
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo.id);
 	glBufferData(GL_UNIFORM_BUFFER, dataSize, data, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, ubo.bindingId, ubo.id);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
+	
 	ubo.isReady = true;
 	CM_UBOS[cmUboCount] = ubo;
 	cmUboCount++;

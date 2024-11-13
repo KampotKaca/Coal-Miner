@@ -9,7 +9,7 @@ const uint TERRAIN_CHUNK_VOXEL_COUNT_SPLIT = TERRAIN_CHUNK_VOXEL_COUNT / 4;
 const uint UV_SCALE = 16;
 const float UV_STEP = 1.0f / UV_SCALE;
 
-layout(std140, binding = 33) uniform GlobalLight
+layout(std140, binding = 9) uniform GlobalLight
 {
     vec3 lightDirection;
     vec3 lightColor;
@@ -21,7 +21,7 @@ const float faceColors[6] =
     0.8f, 0.8f, 0.8f, 0.8f, 1.0f, 0.6f
 };
 
-layout(std430, binding = 48) buffer VoxelBuffer
+layout(std430, binding = 16) buffer VoxelBuffer
 {
     uint[] voxels;
 };
@@ -74,7 +74,7 @@ void main()
 
     uv.y = 1.0f - uv.y;
     finalColor = texture(u_surfaceTex[out_faceId], uv);
-//    finalColor.rgb *= lightLuminosity;
+    finalColor.rgb *= lightLuminosity;
 //    finalColor.rgb *= diffuse_global_lighting(out_normal);
     finalColor.rgb *= out_ao_footprint;
     finalColor.rgb *= faceColors[out_faceId];
