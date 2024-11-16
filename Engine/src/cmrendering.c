@@ -13,9 +13,8 @@ struct CameraUbo
 
 struct GlobalLightUbo
 {
+	vec4 color;
 	vec3 direction;
-	vec3 color;
-	float luminosity;
 };
 
 Window* CM_RN_WIN_P;
@@ -42,8 +41,9 @@ void load_renderer(Window* wPtr)
 {
 	CM_RN_WIN_P = wPtr;
 	
-	cm_load_ubo(CAMERA_UBO_BINDING_ID, sizeof(struct CameraUbo), &CM_CAMERA_UBO);
-//	cm_load_ubo(GLOBAL_LIGHT_UBO_BINDING_ID, sizeof(struct GlobalLightUbo), &CM_GLOBAL_LIGHT_UBO);
+	cm_load_ubo("Camera", CAMERA_UBO_BINDING_ID, sizeof(struct CameraUbo), &CM_CAMERA_UBO);
+	cm_load_ubo("GlobalLight", GLOBAL_LIGHT_UBO_BINDING_ID, sizeof(struct GlobalLightUbo), &CM_GLOBAL_LIGHT_UBO);
+	
 	CreateQuad();
 }
 
@@ -95,7 +95,7 @@ void cm_set_global_light(GlobalLight light)
 {
 	glm_vec3_copy(light.direction, CM_GLOBAL_LIGHT_UBO.direction);
 	glm_vec3_copy(light.color, CM_GLOBAL_LIGHT_UBO.color);
-	CM_GLOBAL_LIGHT_UBO.luminosity = light.luminosity;
+	CM_GLOBAL_LIGHT_UBO.color[3] = light.luminosity;
 }
 
 void cm_end_mode_3d()

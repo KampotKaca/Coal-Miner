@@ -16,18 +16,19 @@
 typedef struct Ubo
 {
 	bool isReady;
-	unsigned int id;
-	unsigned int bindingId;
-	unsigned int dataSize;
+	char name[MAX_SHADER_UNIFORM_NAME_LENGTH];
+	uint32_t id;
+	uint32_t bindingId;
+	uint32_t dataSize;
 	const void* data;
 } Ubo;
 
 Ubo CM_UBOS[MAX_NUM_UBOS];
-unsigned int cmUboCount;
+uint32_t cmUboCount;
 
 static int GetPixelDataSize(int width, int height, int format);
 
-const char *get_pixel_format_name(unsigned int format)
+const char *get_pixel_format_name(uint32_t format)
 {
 	switch (format)
 	{
@@ -59,10 +60,10 @@ const char *get_pixel_format_name(unsigned int format)
 	}
 }
 
-unsigned int load_texture(const void *data, int width, int height,
+uint32_t load_texture(const void *data, int width, int height,
 						  TextureFlags wrap, TextureFlags filter, int format, int mipmapCount)
 {
-	unsigned int id = 0;
+	uint32_t id = 0;
 	
 	glBindTexture(GL_TEXTURE_2D, 0);    // Free any old binding
 	
@@ -81,9 +82,9 @@ unsigned int load_texture(const void *data, int width, int height,
 	// Load the different mipmap levels
 	for (int i = 0; i < mipmapCount; i++)
 	{
-		unsigned int mipSize = GetPixelDataSize(mipWidth, mipHeight, format);
+		uint32_t mipSize = GetPixelDataSize(mipWidth, mipHeight, format);
 		
-		unsigned int glInternalFormat, glFormat, glType;
+		uint32_t glInternalFormat, glFormat, glType;
 		get_gl_texture_formats(format, &glInternalFormat, &glFormat, &glType);
 
 		log_trace("TEXTURE: Load mipmap level %i (%i x %i), size: %i, offset: %i", i, mipWidth, mipHeight, mipSize, mipOffset);
@@ -153,7 +154,7 @@ void cm_unload_texture(Texture tex)
 	glDeleteTextures(1, &tex.id);
 }
 
-void get_gl_texture_formats(int format, unsigned int *glInternalFormat, unsigned int *glFormat, unsigned int *glType)
+void get_gl_texture_formats(int format, uint32_t *glInternalFormat, uint32_t *glFormat, uint32_t *glType)
 {
 	*glInternalFormat = 0;
 	*glFormat = 0;
@@ -252,8 +253,8 @@ Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode)
 {
 	Shader shader = { 0 };
 
-	unsigned int vertexShaderId = 0;
-    unsigned int fragmentShaderId = 0;
+	uint32_t vertexShaderId = 0;
+    uint32_t fragmentShaderId = 0;
 
     // Compile vertex shader (if provided)
     if (vsCode != NULL) vertexShaderId = compile_shader(vsCode, GL_VERTEX_SHADER);
@@ -263,39 +264,38 @@ Shader cm_load_shader_from_memory(const char *vsCode, const char *fsCode)
 
 	// One of or both shader are new, we need to compile a new shader program
 	shader.id = load_shader_program(vertexShaderId, fragmentShaderId);
-
+	shader.uniforms = list_create(0);
+	
 	// Get available shader uniforms
-	// NOTE: This information is useful for debug...
 	int uniformCount = -1;
 	glGetProgramiv(shader.id, GL_ACTIVE_UNIFORMS, &uniformCount);
-
-	for (int i = 0; i < uniformCount; i++)
+	
+	for (uint32_t i = 0; i < uniformCount; i++)
 	{
-		int namelen = -1;
-		int num = -1;
-		char name[256] = { 0 };     // Assume no variable names longer than 256
-		GLenum type = GL_ZERO;
+		// Check if this uniform belongs to a UBO
+		GLint blockIndex;
+		glGetActiveUniformsiv(shader.id, 1, &i, GL_UNIFORM_BLOCK_INDEX, &blockIndex);
 
-		// Get the name of the uniforms
-		glGetActiveUniform(shader.id, i, sizeof(name) - 1, &namelen, &num, &type, name);
-
-		name[namelen] = 0;
-//		printf("SHADER: [ID %i] Active uniform (%s) set at location: %i", shader.id, name, glGetUniformLocation(shader.id, name));
+		if(blockIndex == -1)
+		{
+			ShaderUniform uniform = {  };
+			glGetActiveUniform(shader.id, i, sizeof(uniform.name), &uniform.length, &uniform.size, &uniform.type, uniform.name);
+			uniform.location = glGetUniformLocation(shader.id, uniform.name);
+			
+			list_add(&shader.uniforms, 1, &uniform, sizeof(ShaderUniform));
+		}
 	}
-
-	GLenum properties[] = {GL_BUFFER_BINDING};
+	
 	for (int i = 0; i < cmUboCount; ++i)
 	{
-		GLint bindingIndex;
-		glGetProgramResourceiv(shader.id, GL_UNIFORM_BLOCK, CM_UBOS[i].bindingId, 1, properties, 1, NULL, &bindingIndex);
-
-		if(bindingIndex > 0)
-		{
-			glBindBuffer(GL_UNIFORM_BUFFER, CM_UBOS[i].id);
-			glUniformBlockBinding(shader.id, CM_UBOS[i].bindingId, 0);
-			glBindBufferBase(GL_UNIFORM_BUFFER, 0, CM_UBOS[i].id);
-			glBindBuffer(GL_UNIFORM_BUFFER, 0);
-		}
+		// Retrieve the uniform block index corresponding to the binding point
+		GLint blockIndex = glGetUniformBlockIndex(shader.id, CM_UBOS[i].name);
+		
+		if (blockIndex == GL_INVALID_INDEX) continue;
+		
+		// Bind the buffer to the specified binding point
+		glUniformBlockBinding(shader.id, blockIndex, CM_UBOS[i].bindingId);
+		glBindBufferBase(GL_UNIFORM_BUFFER, CM_UBOS[i].bindingId, CM_UBOS[i].id);
 	}
 
 	// We can detach and delete vertex/fragment shaders (if not default ones)
@@ -321,14 +321,13 @@ void cm_unload_shader(Shader shader)
 	if (shader.id != 0)
 	{
 		unload_shader_program(shader.id);
-		// NOTE: If shader loading failed, it should be 0
-		CM_FREE(shader.locs);
+		list_clear(&shader.uniforms);
 	}
 }
 
-unsigned int compile_shader(const char *shaderCode, int type)
+uint32_t compile_shader(const char *shaderCode, int type)
 {
-	unsigned int shader;
+	uint32_t shader;
 
 	shader = glCreateShader(type);
     glShaderSource(shader, 1, &shaderCode, NULL);
@@ -364,9 +363,9 @@ unsigned int compile_shader(const char *shaderCode, int type)
 	return shader;
 }
 
-unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId)
+uint32_t load_shader_program(uint32_t vShaderId, uint32_t fShaderId)
 {
-	unsigned int program;
+	uint32_t program;
 
 	GLint success = 0;
     program = glCreateProgram();
@@ -403,12 +402,12 @@ unsigned int load_shader_program(unsigned int vShaderId, unsigned int fShaderId)
 	return program;
 }
 
-void unload_shader_program(unsigned int id)
+void unload_shader_program(uint32_t id)
 {
 	glDeleteProgram(id);
 }
 
-Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, const void* data)
+Ssbo cm_load_ssbo(uint32_t bindingId, uint32_t dataSize, const void* data)
 {
 	Ssbo ssbo = {0};
 	ssbo.bindingId = bindingId;
@@ -425,7 +424,7 @@ Ssbo cm_load_ssbo(unsigned int bindingId, unsigned int dataSize, const void* dat
 	return ssbo;
 }
 
-void cm_upload_ssbo(Ssbo ssbo, unsigned int offset, unsigned int size, const void* data)
+void cm_upload_ssbo(Ssbo ssbo, uint32_t offset, uint32_t size, const void* data)
 {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo.id);
 	glBufferSubData(GL_SHADER_STORAGE_BUFFER, offset, size, data);
@@ -437,15 +436,22 @@ void cm_unload_ssbo(Ssbo ssbo)
 	glDeleteBuffers(1, &ssbo.id);
 }
 
-bool cm_load_ubo(unsigned int bindingId, unsigned int dataSize, const void* data)
+bool cm_load_ubo(const char* name, uint32_t bindingId, uint32_t dataSize, const void* data)
 {
 	if(cmUboCount == MAX_NUM_UBOS)
 	{
-		perror("Maximum amount of Ubos reached please allocate more space from config file");
+		log_error("%s", "Unable to create Ubo, max count was already reached");
 		return false;
 	}
 	
-	Ubo ubo = {};
+	if(data == NULL)
+	{
+		log_error("%s", "Unable to create Ubo, data should never be NULL");
+		return false;
+	}
+	
+	Ubo ubo = {  };
+	strcpy(ubo.name, name);
 	ubo.dataSize = dataSize;
 	ubo.data = data;
 	ubo.bindingId = bindingId;
@@ -482,7 +488,7 @@ void unload_ubos()
 	cmUboCount = 0;
 }
 
-Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo)
+Vao cm_load_vao(VaoAttribute* attributes, uint32_t attributeCount, Vbo vbo)
 {
 	Vao vao = { 0 };
 	vao.vbo = (Vbo){ 0 };
@@ -497,7 +503,7 @@ Vao cm_load_vao(VaoAttribute* attributes, unsigned int attributeCount, Vbo vbo)
 
 	for (int i = 0; i < vao.attributeCount; ++i) vao.stride += vao.attributes[i].stride;
 
-	unsigned int offset = 0;
+	uint32_t offset = 0;
 	
 	for (int i = 0; i < vao.attributeCount; ++i)
 	{
@@ -532,7 +538,7 @@ void cm_unload_vao(Vao vao)
 	CM_FREE(vao.attributes);
 }
 
-Vbo cm_load_vbo(unsigned int dataSize, unsigned int vertexCount, const void* data, Ebo ebo)
+Vbo cm_load_vbo(uint32_t dataSize, uint32_t vertexCount, const void* data, Ebo ebo)
 {
 	Vbo vbo = { 0 };
 	vbo.ebo = (Ebo){ 0 };
@@ -557,7 +563,7 @@ void cm_unload_vbo(Vbo vbo)
 	glDeleteBuffers(1, &vbo.id);
 }
 
-void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, const void* data)
+void cm_reupload_vbo(Vbo* vbo, uint32_t dataSize, const void* data)
 {
 	glBindBuffer(GL_ARRAY_BUFFER, vbo->id);
 	vbo->dataSize = dataSize;
@@ -566,14 +572,14 @@ void cm_reupload_vbo(Vbo* vbo, unsigned int dataSize, const void* data)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void cm_reupload_vbo_partial(Vbo* vbo, unsigned int dataOffset, unsigned int uploadSize)
+void cm_reupload_vbo_partial(Vbo* vbo, uint32_t dataOffset, uint32_t uploadSize)
 {
 	glBindBuffer(GL_ARRAY_BUFFER, vbo->id);
 	glBufferSubData(GL_ARRAY_BUFFER, dataOffset, uploadSize, vbo->data);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-Ebo cm_load_ebo(unsigned int dataSize, const void* data, unsigned int type, unsigned int indexCount)
+Ebo cm_load_ebo(uint32_t dataSize, const void* data, uint32_t type, uint32_t indexCount)
 {
 	Ebo ebo = { 0 };
 	ebo.dataSize = dataSize;
@@ -594,7 +600,7 @@ void cm_unload_ebo(Ebo ebo)
 	glDeleteBuffers(1, &ebo.id);
 }
 
-void cm_reupload_ebo(Ebo* ebo, unsigned int dataSize, const void* data, unsigned int indexCount)
+void cm_reupload_ebo(Ebo* ebo, uint32_t dataSize, const void* data, uint32_t indexCount)
 {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo->id);
 	ebo->dataSize = dataSize;
@@ -620,7 +626,7 @@ extern void cm_draw_vao(Vao vao, DrawType drawType)
 	}
 }
 
-void cm_draw_instanced_vao(Vao vao, DrawType drawType, unsigned int instanceCount)
+void cm_draw_instanced_vao(Vao vao, DrawType drawType, uint32_t instanceCount)
 {
 	glBindVertexArray(vao.id);
 
@@ -651,21 +657,21 @@ void cm_set_uniform_m4x4(int id, float* m) { glUniformMatrix4fv(id, 1, GL_FALSE,
 
 void cm_set_uniform_vec4(int id, float* m) { glUniform4f(id, m[0], m[1], m[2], m[3]); }
 void cm_set_uniform_ivec4(int id, int* m) { glUniform4i(id, m[0], m[1], m[2], m[3]); }
-void cm_set_uniform_uvec4(int id, unsigned int* m) { glUniform4ui(id, m[0], m[1], m[2], m[3]); }
+void cm_set_uniform_uvec4(int id, uint32_t* m) { glUniform4ui(id, m[0], m[1], m[2], m[3]); }
 
 void cm_set_uniform_vec3(int id, float* m) { glUniform3f(id, m[0], m[1], m[2]); }
 void cm_set_uniform_ivec3(int id, int* m) { glUniform3i(id, m[0], m[1], m[2]); }
-void cm_set_uniform_uvec3(int id, unsigned int* m) { glUniform3ui(id, m[0], m[1], m[2]); }
+void cm_set_uniform_uvec3(int id, uint32_t* m) { glUniform3ui(id, m[0], m[1], m[2]); }
 
 void cm_set_uniform_vec2(int id, float* m) { glUniform2f(id, m[0], m[1]); }
 void cm_set_uniform_ivec2(int id, int* m) { glUniform2i(id, m[0], m[1]); }
-void cm_set_uniform_uvec2(int id, unsigned int* m) { glUniform2ui(id, m[0], m[1]); }
+void cm_set_uniform_uvec2(int id, uint32_t* m) { glUniform2ui(id, m[0], m[1]); }
 
 void cm_set_uniform_f(int id, float f) { glUniform1f(id, f); }
 void cm_set_uniform_i(int id, int f) { glUniform1i(id, f); }
-void cm_set_uniform_u(int id, unsigned int f) { glUniform1ui(id, f); }
+void cm_set_uniform_u(int id, uint32_t f) { glUniform1ui(id, f); }
 
-void cm_set_texture(int id, unsigned int texId, unsigned char bindingPoint)
+void cm_set_texture(int id, uint32_t texId, unsigned char bindingPoint)
 {
 	glActiveTexture(GL_TEXTURE0 + bindingPoint);
 	glBindTexture(GL_TEXTURE_2D, texId);
@@ -682,7 +688,7 @@ void cm_enable_backface_culling(void) { glEnable(GL_CULL_FACE); }
 void cm_disable_backface_culling(void) { glDisable(GL_CULL_FACE); }
 
 // Set color mask active for screen read/draw
-void cm_color_mask(unsigned int mask) { glColorMask((mask & CM_RED) > 0, (mask & CM_GREEN) > 0,
+void cm_color_mask(uint32_t mask) { glColorMask((mask & CM_RED) > 0, (mask & CM_GREEN) > 0,
 												 (mask & CM_BLUE) > 0, (mask & CM_ALPHA) > 0); }
 
 void cm_set_cull_face(int mode)

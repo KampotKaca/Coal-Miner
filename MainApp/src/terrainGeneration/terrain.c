@@ -580,7 +580,7 @@ static bool TryUploadGroup(TerrainChunkGroup* group)
 		if(chunk->flags.state == CHUNK_REQUIRES_UPLOAD)
 		{
 			uint32_t id = group->ssboId * TERRAIN_HEIGHT + y;
-			cm_reupload_vbo(&voxelTerrain.chunkVaos[id].vbo, chunk->buffer.position, chunk->buffer.data);
+			cm_reupload_vbo(&voxelTerrain.chunkVaos[id].vbo, chunk->buffer.endPosition, chunk->buffer.data);
 			cm_upload_ssbo(voxelTerrain.voxelsSsbo, id * TERRAIN_CHUNK_VOXEL_COUNT, TERRAIN_CHUNK_VOXEL_COUNT, chunk->voxels);
 			chunk->flags.state = CHUNK_READY_TO_DRAW;
 			chunk->flags.isUploaded = true;

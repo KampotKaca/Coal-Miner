@@ -63,3 +63,9 @@ uint32_t cm_max(uint32_t u1, uint32_t u2)
 	if(u1 > u2) return u1;
 	return u2;
 }
+
+uint32_t cm_min(uint32_t u1, uint32_t u2)
+{
+	if(u1 < u2) return u1;
+	return u2;
+}

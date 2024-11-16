@@ -11,9 +11,8 @@ const float UV_STEP = 1.0f / UV_SCALE;
 
 layout(std140, binding = 9) uniform GlobalLight
 {
+    vec4 lightColor;
     vec3 lightDirection;
-    vec3 lightColor;
-    float lightLuminosity;
 };
 
 const float faceColors[6] =
@@ -56,8 +55,8 @@ uvec3 round_vec3(vec3 v3)
 
 vec3 diffuse_global_lighting(vec3 normal)
 {
-    float power = max(0.0f, dot(-lightDirection, normal));
-    return lightLuminosity * power * lightColor;
+    float power = max(0.5f, dot(lightDirection, -normal));
+    return lightColor.w * power * lightColor.rgb;
 }
 
 void main()
@@ -74,9 +73,8 @@ void main()
 
     uv.y = 1.0f - uv.y;
     finalColor = texture(u_surfaceTex[out_faceId], uv);
-    finalColor.rgb *= lightLuminosity;
-//    finalColor.rgb *= diffuse_global_lighting(out_normal);
+    finalColor.rgb *= diffuse_global_lighting(out_normal);
     finalColor.rgb *= out_ao_footprint;
-    finalColor.rgb *= faceColors[out_faceId];
+//    finalColor.rgb *= faceColors[out_faceId];
     finalColor.a = 1f;
 }
