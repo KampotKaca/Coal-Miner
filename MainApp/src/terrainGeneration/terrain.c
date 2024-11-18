@@ -118,10 +118,10 @@ void draw_terrain()
 	cm_begin_shader_mode(voxelTerrain.shader);
 	
 	for (int i = 0; i < 4; ++i)
-		cm_set_texture(voxelTerrain.u_surfaceTex + i, voxelTerrain.textures[0].id, i);
+		cm_set_texture(voxelTerrain.uniforms.u_surfaceTex + i, voxelTerrain.textures[0].id, i);
 	
-	cm_set_texture(voxelTerrain.u_surfaceTex + 4, voxelTerrain.textures[1].id, 4);
-	cm_set_texture(voxelTerrain.u_surfaceTex + 5, voxelTerrain.textures[2].id, 5);
+	cm_set_texture(voxelTerrain.uniforms.u_surfaceTex + 4, voxelTerrain.textures[1].id, 4);
+	cm_set_texture(voxelTerrain.uniforms.u_surfaceTex + 5, voxelTerrain.textures[2].id, 5);
 
 	UniformData data = {0};
 	int numUploadsLeft = TERRAIN_GROUP_UPLOAD_LIMIT;
@@ -207,8 +207,14 @@ static void LoadTerrainShader()
 	Path fsPath = TO_RES_PATH(fsPath, "shaders/voxel_terrain.frag");
 	
 	voxelTerrain.shader = cm_load_shader(vsPath, fsPath);
-	voxelTerrain.u_chunkIndex = cm_get_uniform_location(voxelTerrain.shader, "u_chunkIndex");
-	voxelTerrain.u_surfaceTex = cm_get_uniform_location(voxelTerrain.shader, "u_surfaceTex");
+	TerrainShaderUniforms uniforms = {};
+	
+	uniforms.u_chunkIndex = cm_get_uniform_location(voxelTerrain.shader, "u_chunkIndex");
+	uniforms.u_surfaceTex = cm_get_uniform_location(voxelTerrain.shader, "u_surfaceTex");
+	
+	uniforms.u_ambientColor = cm_get_uniform_location(voxelTerrain.shader, "u_ambientColor");
+	
+	voxelTerrain.uniforms = uniforms;
 }
 
 static void LoadTerrainTextures()
@@ -510,7 +516,10 @@ static void PassTerrainDataToShader(UniformData* data)
 	uint32_t index[4];
 	memcpy(index, data->chunk, sizeof(ivec3));
 	index[3] = data->chunkId;
-	cm_set_uniform_uvec4(voxelTerrain.u_chunkIndex, index);
+	
+	TerrainShaderUniforms uniforms = voxelTerrain.uniforms;
+	cm_set_uniform_uvec4(uniforms.u_chunkIndex, index);
+	cm_set_uniform_vec3(uniforms.u_ambientColor, TERRAIN_SHADER_AMBIENT_COLOR);
 }
 
 static bool AllChunksAreLoaded()

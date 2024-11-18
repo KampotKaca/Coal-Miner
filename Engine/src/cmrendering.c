@@ -73,10 +73,7 @@ void cm_begin_mode_3d(Camera3D camera)
 	
 	glm_normalize(camera.direction);
 	
-//	vec3 invUp;
-//	glm_vec3_negate(camera.up);
 	glm_look(camera.position, camera.direction, camera.up, CM_CAMERA_UBO.view);
-//	glm_scale(CM_CAMERA_UBO.view, (vec3){ -1, 1, 1 });
 	glm_mat4_mul(CM_CAMERA_UBO.projection, CM_CAMERA_UBO.view, CM_CAMERA_UBO.viewProjection);
 
 	glm_vec3_copy(camera.position, CM_CAMERA_UBO.position);

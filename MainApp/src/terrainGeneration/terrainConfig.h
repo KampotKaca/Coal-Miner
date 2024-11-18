@@ -72,6 +72,10 @@
 #define TERRAIN_HIGH_MOUNTAIN_LACUNARITY 2
 //endregion
 
+//region Phong Lighting
+#define TERRAIN_SHADER_AMBIENT_COLOR (vec3){ 0.5f, 0.5f, 0.5f }
+//endregion
+
 #define TERRAIN_LOADING_EDGE 3
 
 #define TERRAIN_MAX_AXIS_BLOCK_TYPES 16

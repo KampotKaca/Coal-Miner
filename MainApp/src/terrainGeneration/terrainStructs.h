@@ -62,7 +62,15 @@ typedef struct
 {
 	int u_chunkIndex;
 	int u_surfaceTex;
+	
+	int u_ambientColor;
+	
+}TerrainShaderUniforms;
 
+typedef struct
+{
+	TerrainShaderUniforms uniforms;
+	
 	fnl_state caveNoise;
 	fnl_state biomes[BIOME_COUNT];
 
